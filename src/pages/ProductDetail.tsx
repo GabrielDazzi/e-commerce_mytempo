@@ -1,0 +1,510 @@
+
+import { useState, useEffect } from "react";
+import { useParams, Link } from "react-router-dom";
+import { Navbar } from "@/components/Navbar";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Separator } from "@/components/ui/separator";
+import { ShoppingCart, ArrowLeft, Medal, Trophy, Check } from "lucide-react";
+import { Product } from "@/types/Product";
+import { toast } from "sonner";
+
+// Mock data - in a real app, this would come from an API
+const MOCK_PRODUCTS: Product[] = [
+  {
+    id: "1",
+    name: "Porta Medalhas Premium",
+    description: "Porta medalhas de metal com espaço para 20 medalhas. Ideal para atletas dedicados. Este porta medalhas premium é projetado para atletas que desejam exibir suas conquistas de forma elegante e organizada. Fabricado em metal de alta qualidade, possui ganchos resistentes que suportam medalhas de diferentes tamanhos e pesos.\n\nCaracterísticas:\n- Material: Alumínio escovado\n- Capacidade: 20 medalhas\n- Dimensões: 60cm x 15cm\n- Inclui kit de fixação na parede\n- Personalização do nome disponível por encomenda",
+    price: 149.99,
+    category: "porta-medalhas",
+    imageUrl: "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8c3BvcnRzJTIwbWVkYWx8ZW58MHx8MHx8fDA%3D",
+    stock: 15,
+    featured: true,
+    createdAt: new Date()
+  },
+  {
+    id: "2",
+    name: "Troféu Campeão Nacional",
+    description: "Troféu banhado a ouro para premiação de campeonatos nacionais. Este troféu de prestígio é ideal para premiações de alto nível, como campeonatos estaduais e nacionais. Com acabamento banhado a ouro de 18 quilates e base de mármore preto, este troféu carrega um símbolo de excelência e vitória.\n\nDetalhes Técnicos:\n- Altura: 45cm\n- Material do corpo: Liga metálica com banho de ouro 18k\n- Base: Mármore preto polido\n- Gravação personalizada incluída\n- Acompanha estojo para transporte",
+    price: 299.99,
+    category: "trofeus",
+    imageUrl: "https://images.unsplash.com/photo-1569513586164-80529357ad6f?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTB8fHRyb3BoeXxlbnwwfHwwfHx8MA%3D%3D",
+    stock: 5,
+    discount: 10,
+    featured: true,
+    createdAt: new Date()
+  },
+  {
+    id: "3",
+    name: "Porta Medalhas Triplo",
+    description: "Suporte para medalhas com 3 níveis, comportando até 30 medalhas. O Porta Medalhas Triplo é a solução ideal para atletas com múltiplas conquistas. Com seu design de três níveis, ele permite organizar suas medalhas por importância, categoria ou cronologia, mantendo-as protegidas e em destaque.\n\nEspecificações:\n- Estrutura em aço carbono com pintura eletrostática\n- Três níveis independentes\n- Capacidade total: 30 medalhas (10 por nível)\n- Dimensões: 80cm x 30cm\n- Disponível nas cores: preto, prata ou dourado\n- Montagem simplificada",
+    price: 179.99,
+    category: "porta-medalhas",
+    imageUrl: "https://images.unsplash.com/photo-1567427013953-33abb88c8390?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8bWVkYWxzfGVufDB8fDB8fHww",
+    stock: 8,
+    featured: false,
+    createdAt: new Date()
+  },
+  {
+    id: "4",
+    name: "Troféu Regional",
+    description: "Troféu de acrílico para premiações regionais e municipais. Um troféu moderno e elegante, ideal para premiações regionais, municipais ou eventos corporativos. Fabricado em acrílico cristal transparente de 8mm, oferece uma alternativa contemporânea aos troféus tradicionais.\n\nCaracterísticas principais:\n- Altura: 25cm\n- Material: Acrílico cristal transparente\n- Base: Acrílico preto com nome gravado a laser\n- Design moderno e minimalista\n- Leve e resistente a quedas\n- Gravação incluída no preço",
+    price: 129.99,
+    category: "trofeus",
+    imageUrl: "https://images.unsplash.com/photo-1591189824397-cf6550262b4c?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTl8fHRyb3BoeXxlbnwwfHwwfHx8MA%3D%3D",
+    stock: 12,
+    featured: false,
+    createdAt: new Date()
+  }
+];
+
+// Cart storage in localStorage
+const addToCart = (product: Product, quantity: number = 1) => {
+  const cartItems = JSON.parse(localStorage.getItem("cart") || "[]");
+  
+  const existingItemIndex = cartItems.findIndex(
+    (item: { productId: string }) => item.productId === product.id
+  );
+  
+  if (existingItemIndex !== -1) {
+    cartItems[existingItemIndex].quantity += quantity;
+  } else {
+    cartItems.push({
+      productId: product.id,
+      quantity,
+      product
+    });
+  }
+  
+  localStorage.setItem("cart", JSON.stringify(cartItems));
+};
+
+export default function ProductDetailPage() {
+  const { productId } = useParams<{ productId: string }>();
+  const [product, setProduct] = useState<Product | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [quantity, setQuantity] = useState(1);
+  const [activeTab, setActiveTab] = useState("descricao");
+  const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
+  
+  useEffect(() => {
+    // Simulate API call
+    setTimeout(() => {
+      const foundProduct = MOCK_PRODUCTS.find(p => p.id === productId) || null;
+      setProduct(foundProduct);
+      setLoading(false);
+      
+      // Find related products
+      if (foundProduct) {
+        const related = MOCK_PRODUCTS.filter(
+          p => p.category === foundProduct.category && p.id !== foundProduct.id
+        ).slice(0, 2);
+        setRelatedProducts(related);
+      }
+    }, 300);
+  }, [productId]);
+  
+  const handleQuantityChange = (newQuantity: number) => {
+    if (newQuantity < 1) return;
+    if (product && newQuantity > product.stock) {
+      toast.error(`Apenas ${product.stock} unidades disponíveis`);
+      return;
+    }
+    setQuantity(newQuantity);
+  };
+  
+  const handleAddToCart = () => {
+    if (product) {
+      addToCart(product, quantity);
+      toast.success(`${quantity} ${quantity > 1 ? 'unidades' : 'unidade'} de ${product.name} adicionadas ao carrinho!`);
+    }
+  };
+  
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col bg-background">
+        <Navbar />
+        <div className="container flex-grow flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
+            <p className="mt-4 text-muted-foreground">Carregando produto...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  if (!product) {
+    return (
+      <div className="min-h-screen flex flex-col bg-background">
+        <Navbar />
+        <div className="container flex-grow flex items-center justify-center">
+          <div className="text-center max-w-md">
+            <h2 className="text-2xl font-bold mb-2">Produto não encontrado</h2>
+            <p className="text-muted-foreground mb-6">
+              O produto que você está procurando não existe ou foi removido.
+            </p>
+            <Link to="/">
+              <Button>Voltar para a página inicial</Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  const finalPrice = product.discount 
+    ? product.price - (product.price * product.discount / 100) 
+    : product.price;
+    
+  const stockStatus = product.stock > 0 
+    ? product.stock <= 5 
+      ? `Apenas ${product.stock} em estoque` 
+      : "Em estoque" 
+    : "Fora de estoque";
+  
+  const stockColor = product.stock > 5 
+    ? "text-green-600" 
+    : product.stock > 0 
+      ? "text-yellow-600" 
+      : "text-red-600";
+  
+  return (
+    <div className="min-h-screen flex flex-col bg-background">
+      <Navbar />
+      
+      <main className="flex-1 py-8">
+        <div className="container px-4 md:px-6">
+          <Link to="/" className="inline-flex items-center text-sm font-medium text-muted-foreground hover:text-foreground mb-4">
+            <ArrowLeft className="mr-1 h-4 w-4" />
+            Voltar para produtos
+          </Link>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+            {/* Product Image */}
+            <div className="bg-white rounded-lg overflow-hidden border">
+              <img 
+                src={product.imageUrl || "/placeholder.svg"} 
+                alt={product.name}
+                className="w-full h-auto object-cover aspect-square"
+              />
+            </div>
+            
+            {/* Product Info */}
+            <div className="space-y-6">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <Badge category={product.category} />
+                  {product.discount ? (
+                    <span className="bg-red-500 text-white px-2 py-0.5 text-xs font-medium rounded">
+                      -{product.discount}% OFF
+                    </span>
+                  ) : null}
+                </div>
+                
+                <h1 className="text-2xl md:text-3xl font-bold">{product.name}</h1>
+                
+                <div className="flex items-center gap-2 mt-2">
+                  <div className="flex items-center">
+                    <span className={`flex items-center gap-1 text-sm font-medium ${stockColor}`}>
+                      {product.stock > 0 ? <Check className="h-4 w-4" /> : null}
+                      {stockStatus}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <div className="flex items-end gap-2">
+                  {product.discount ? (
+                    <>
+                      <span className="text-muted-foreground line-through text-lg">
+                        R$ {product.price.toFixed(2)}
+                      </span>
+                      <span className="text-3xl font-bold text-primary">
+                        R$ {finalPrice.toFixed(2)}
+                      </span>
+                    </>
+                  ) : (
+                    <span className="text-3xl font-bold text-primary">
+                      R$ {finalPrice.toFixed(2)}
+                    </span>
+                  )}
+                </div>
+                
+                <p className="text-sm text-muted-foreground">
+                  Em até 12x de R$ {(finalPrice / 12).toFixed(2)} sem juros
+                </p>
+              </div>
+              
+              <Separator />
+              
+              {product.stock > 0 ? (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => handleQuantityChange(quantity - 1)}
+                      disabled={quantity <= 1}
+                    >
+                      -
+                    </Button>
+                    <span className="w-8 text-center">{quantity}</span>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => handleQuantityChange(quantity + 1)}
+                      disabled={quantity >= product.stock}
+                    >
+                      +
+                    </Button>
+                    <span className="text-sm text-muted-foreground ml-2">
+                      {product.stock} disponíveis
+                    </span>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Button 
+                      className="w-full gap-2" 
+                      onClick={handleAddToCart}
+                    >
+                      <ShoppingCart className="h-4 w-4" />
+                      Adicionar ao Carrinho
+                    </Button>
+                    
+                    <Link to="/carrinho" className="w-full">
+                      <Button 
+                        variant="secondary" 
+                        className="w-full"
+                        onClick={() => {
+                          handleAddToCart();
+                        }}
+                      >
+                        Comprar Agora
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              ) : (
+                <Button disabled className="w-full">
+                  Produto Indisponível
+                </Button>
+              )}
+              
+              <div className="bg-muted/50 rounded-lg p-4 text-sm">
+                <p className="font-medium">Formas de entrega:</p>
+                <ul className="mt-2 space-y-1">
+                  <li className="flex items-center gap-2">
+                    <Check className="h-4 w-4 text-green-600" />
+                    <span>Envio para todo Brasil</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="h-4 w-4 text-green-600" />
+                    <span>Frete grátis para compras acima de R$300</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="h-4 w-4 text-green-600" />
+                    <span>Garantia de 30 dias</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+          
+          {/* Product Details */}
+          <div className="mb-12">
+            <Tabs defaultValue="descricao" value={activeTab} onValueChange={setActiveTab}>
+              <TabsList className="mb-6">
+                <TabsTrigger value="descricao">Descrição</TabsTrigger>
+                <TabsTrigger value="especificacoes">Especificações</TabsTrigger>
+                <TabsTrigger value="entrega">Entrega</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="descricao" className="text-muted-foreground">
+                <div className="prose max-w-none">
+                  {product.description.split('\n\n').map((paragraph, index) => (
+                    <p key={index} className="mb-4">{paragraph}</p>
+                  ))}
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="especificacoes">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-muted/50 p-4 rounded-lg">
+                    <h4 className="font-medium mb-2">Informações do Produto</h4>
+                    <ul className="space-y-2">
+                      <li className="flex justify-between">
+                        <span className="text-muted-foreground">Categoria</span>
+                        <span className="font-medium">{getCategoryLabel(product.category)}</span>
+                      </li>
+                      <li className="flex justify-between">
+                        <span className="text-muted-foreground">Estoque</span>
+                        <span className="font-medium">{product.stock} unidades</span>
+                      </li>
+                      <li className="flex justify-between">
+                        <span className="text-muted-foreground">Código</span>
+                        <span className="font-medium">PROD-{product.id}</span>
+                      </li>
+                    </ul>
+                  </div>
+                  
+                  <div className="bg-muted/50 p-4 rounded-lg">
+                    <h4 className="font-medium mb-2">Detalhes Adicionais</h4>
+                    <ul className="space-y-2">
+                      <li className="flex justify-between">
+                        <span className="text-muted-foreground">Material</span>
+                        <span className="font-medium">
+                          {product.category === "porta-medalhas" ? "Alumínio" : "Metal banhado"}
+                        </span>
+                      </li>
+                      <li className="flex justify-between">
+                        <span className="text-muted-foreground">Garantia</span>
+                        <span className="font-medium">30 dias</span>
+                      </li>
+                      <li className="flex justify-between">
+                        <span className="text-muted-foreground">Origem</span>
+                        <span className="font-medium">Brasil</span>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="entrega">
+                <div className="space-y-4">
+                  <div className="bg-muted/50 p-4 rounded-lg">
+                    <h4 className="font-medium mb-2">Informações de Entrega</h4>
+                    <ul className="space-y-2">
+                      <li className="flex items-start gap-2">
+                        <Check className="h-4 w-4 text-green-600 mt-1" />
+                        <span>Envio para todo o Brasil através dos Correios ou transportadoras parceiras.</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <Check className="h-4 w-4 text-green-600 mt-1" />
+                        <span>Prazo de envio: 1-3 dias úteis após a confirmação do pagamento.</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <Check className="h-4 w-4 text-green-600 mt-1" />
+                        <span>Frete grátis para compras acima de R$300,00 (válido apenas para Sul e Sudeste).</span>
+                      </li>
+                    </ul>
+                  </div>
+                  
+                  <div className="bg-muted/50 p-4 rounded-lg">
+                    <h4 className="font-medium mb-2">Condições de Troca e Devolução</h4>
+                    <ul className="space-y-2">
+                      <li className="flex items-start gap-2">
+                        <Check className="h-4 w-4 text-green-600 mt-1" />
+                        <span>Você tem até 7 dias após o recebimento para solicitar a troca ou devolução do produto.</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <Check className="h-4 w-4 text-green-600 mt-1" />
+                        <span>O produto deve estar em perfeitas condições, na embalagem original e com todos os acessórios.</span>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </TabsContent>
+            </Tabs>
+          </div>
+          
+          {/* Related Products */}
+          {relatedProducts.length > 0 && (
+            <div>
+              <h3 className="text-xl font-bold mb-6">Produtos Relacionados</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                {relatedProducts.map((relProduct) => (
+                  <Link 
+                    key={relProduct.id} 
+                    to={`/produto/${relProduct.id}`}
+                    className="group"
+                  >
+                    <Card className="overflow-hidden hover-scale h-full">
+                      <div className="h-44 bg-muted">
+                        <img
+                          src={relProduct.imageUrl || "/placeholder.svg"}
+                          alt={relProduct.name}
+                          className="h-full w-full object-cover transition-all group-hover:scale-105"
+                        />
+                      </div>
+                      <div className="p-4">
+                        <h4 className="font-medium line-clamp-2">{relProduct.name}</h4>
+                        <div className="mt-2">
+                          {relProduct.discount ? (
+                            <div className="flex flex-col">
+                              <span className="text-muted-foreground line-through text-sm">
+                                R$ {relProduct.price.toFixed(2)}
+                              </span>
+                              <span className="text-lg font-bold text-primary">
+                                R$ {(relProduct.price - (relProduct.price * relProduct.discount / 100)).toFixed(2)}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-lg font-bold text-primary">
+                              R$ {relProduct.price.toFixed(2)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </Card>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </main>
+      
+      <footer className="bg-sport-dark text-white py-8">
+        <div className="container px-4 md:px-6 text-center">
+          <p>&copy; {new Date().getFullYear()} TrophySports. Todos os direitos reservados.</p>
+        </div>
+      </footer>
+    </div>
+  );
+}
+
+function Badge({ category }: { category: string }) {
+  let icon;
+  let label = "";
+  let classes = "";
+  
+  switch (category) {
+    case "porta-medalhas":
+      icon = <Medal className="h-3 w-3" />;
+      label = "Porta Medalhas";
+      classes = "bg-sport-gold/20 text-sport-gold";
+      break;
+    case "trofeus":
+      icon = <Trophy className="h-3 w-3" />;
+      label = "Troféus";
+      classes = "bg-sport-blue/20 text-sport-blue";
+      break;
+    default:
+      icon = <Medal className="h-3 w-3" />;
+      label = getCategoryLabel(category);
+      classes = "bg-muted text-muted-foreground";
+  }
+  
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${classes}`}>
+      {icon}
+      {label}
+    </span>
+  );
+}
+
+function getCategoryLabel(category: string): string {
+  switch (category) {
+    case "porta-medalhas":
+      return "Porta Medalhas";
+    case "trofeus":
+      return "Troféus";
+    case "medalhas":
+      return "Medalhas";
+    default:
+      return category;
+  }
+}
