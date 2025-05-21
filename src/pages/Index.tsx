@@ -9,10 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Trophy, Medal, Scissors } from "lucide-react";
 import { toast } from "sonner";
-import { 
-  Carousel, 
-  CarouselContent, 
-  CarouselItem 
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem
 } from "@/components/ui/carousel";
 
 // Mock data - in a real app, this would come from an API
@@ -91,11 +91,11 @@ const MOCK_PRODUCTS: Product[] = [
 // Cart storage in localStorage
 const addToCart = (product: Product) => {
   const cartItems = JSON.parse(localStorage.getItem("cart") || "[]");
-  
+
   const existingItemIndex = cartItems.findIndex(
     (item: { productId: string }) => item.productId === product.id
   );
-  
+
   if (existingItemIndex !== -1) {
     cartItems[existingItemIndex].quantity += 1;
   } else {
@@ -105,7 +105,7 @@ const addToCart = (product: Product) => {
       product
     });
   }
-  
+
   localStorage.setItem("cart", JSON.stringify(cartItems));
 };
 
@@ -115,25 +115,25 @@ export default function IndexPage() {
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [sortOption, setSortOption] = useState("featured");
-  
+
   useEffect(() => {
     let result = [...products];
-    
+
     // Filter by category
     if (activeCategory !== "all") {
       result = result.filter(product => product.category === activeCategory);
     }
-    
+
     // Filter by search term
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       result = result.filter(
-        product => 
-          product.name.toLowerCase().includes(term) || 
+        product =>
+          product.name.toLowerCase().includes(term) ||
           product.description.toLowerCase().includes(term)
       );
     }
-    
+
     // Sort products
     switch (sortOption) {
       case "price-asc":
@@ -161,23 +161,23 @@ export default function IndexPage() {
         });
         break;
     }
-    
+
     setFilteredProducts(result);
   }, [products, activeCategory, searchTerm, sortOption]);
-  
+
   const handleAddToCart = (product: Product) => {
     addToCart(product);
   };
-  
+
   const handleCategoryChange = (category: string) => {
     setActiveCategory(category);
   };
-  
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     // Search is already handled by the useEffect
   };
-  
+
   const featuredProducts = products.filter(product => product.featured);
 
   // Carousel images for the hero background
@@ -187,11 +187,11 @@ export default function IndexPage() {
     "https://images.unsplash.com/photo-1587723958656-ee042cc565a1?w=800&auto=format&fit=crop&q=60",
     "https://images.unsplash.com/photo-1567427013953-33abb88c8390?w=800&auto=format&fit=crop&q=60"
   ];
-  
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
-      
+
       <main className="flex-1">
         {/* Hero Section with Carousel Background */}
         <section className="relative overflow-hidden">
@@ -201,9 +201,9 @@ export default function IndexPage() {
               <CarouselContent className="h-full">
                 {heroImages.map((image, index) => (
                   <CarouselItem key={index} className="h-full">
-                    <div 
-                      className="w-full h-[500px] bg-cover bg-center" 
-                      style={{ 
+                    <div
+                      className="w-full h-[500px] bg-cover bg-center"
+                      style={{
                         backgroundImage: `url(${image})`,
                       }}
                     >
@@ -214,7 +214,7 @@ export default function IndexPage() {
               </CarouselContent>
             </Carousel>
           </div>
-          
+
           {/* Hero Content */}
           <div className="relative z-10 py-20 px-4">
             <div className="container mx-auto text-center">
@@ -240,7 +240,7 @@ export default function IndexPage() {
             </div>
           </div>
         </section>
-        
+
         {/* Featured Products */}
         <section className="py-12">
           <div className="container px-4 md:px-6">
@@ -253,26 +253,26 @@ export default function IndexPage() {
                 Ver todos os produtos
               </Button>
             </div>
-            
+
             <div className="product-grid">
               {featuredProducts.slice(0, 3).map((product) => (
-                <ProductCard 
-                  key={product.id} 
-                  product={product} 
-                  addToCart={handleAddToCart} 
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  addToCart={handleAddToCart}
                 />
               ))}
             </div>
           </div>
         </section>
-        
+
         {/* Categories Section */}
         <section className="py-12 bg-muted/50">
           <div className="container px-4 md:px-6">
             <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-center mb-8">
               Nossas Categorias
             </h2>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="bg-white p-6 rounded-lg shadow-sm flex items-center gap-4 hover:shadow-md transition-all">
                 <div className="bg-sport-gold/20 p-4 rounded-full">
@@ -286,7 +286,7 @@ export default function IndexPage() {
                   </Button>
                 </div>
               </div>
-              
+
               <div className="bg-white p-6 rounded-lg shadow-sm flex items-center gap-4 hover:shadow-md transition-all">
                 <div className="bg-sport-blue/20 p-4 rounded-full">
                   <Trophy className="h-8 w-8 text-sport-blue" />
@@ -302,21 +302,21 @@ export default function IndexPage() {
             </div>
           </div>
         </section>
-        
+
         {/* Product Catalog */}
         <section className="py-12">
           <div className="container px-4 md:px-6">
             <h2 className="text-2xl md:text-3xl font-bold tracking-tight mb-8">
               Catálogo de Produtos
             </h2>
-            
+
             <div className="flex flex-col md:flex-row gap-6">
               {/* Filters Sidebar */}
               <div className="md:w-1/4 space-y-6">
                 <div className="bg-white p-4 rounded-lg border">
                   <h3 className="font-medium mb-3">Categorias</h3>
-                  <Tabs 
-                    defaultValue="all" 
+                  <Tabs
+                    defaultValue="all"
                     className="w-full"
                     value={activeCategory}
                     onValueChange={handleCategoryChange}
@@ -331,11 +331,11 @@ export default function IndexPage() {
                     </TabsList>
                   </Tabs>
                 </div>
-                
+
                 <div className="bg-white p-4 rounded-lg border">
                   <h3 className="font-medium mb-3">Ordenar por</h3>
-                  <Select 
-                    value={sortOption} 
+                  <Select
+                    value={sortOption}
                     onValueChange={setSortOption}
                   >
                     <SelectTrigger>
@@ -349,7 +349,7 @@ export default function IndexPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                
+
                 <div className="bg-white p-4 rounded-lg border">
                   <h3 className="font-medium mb-3">Buscar</h3>
                   <form onSubmit={handleSearch} className="flex gap-2">
@@ -365,16 +365,16 @@ export default function IndexPage() {
                   </form>
                 </div>
               </div>
-              
+
               {/* Products Grid */}
               <div className="md:w-3/4">
                 {filteredProducts.length > 0 ? (
                   <div className="product-grid">
                     {filteredProducts.map((product) => (
-                      <ProductCard 
-                        key={product.id} 
+                      <ProductCard
+                        key={product.id}
                         product={product}
-                        addToCart={handleAddToCart} 
+                        addToCart={handleAddToCart}
                       />
                     ))}
                   </div>
@@ -383,7 +383,7 @@ export default function IndexPage() {
                     <p className="text-lg text-muted-foreground">
                       Nenhum produto encontrado com os filtros atuais.
                     </p>
-                    <Button 
+                    <Button
                       variant="link"
                       onClick={() => {
                         setActiveCategory("all");
@@ -400,7 +400,7 @@ export default function IndexPage() {
           </div>
         </section>
       </main>
-      
+
       <footer className="bg-sport-dark text-white py-12">
         <div className="container px-4 md:px-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -422,9 +422,11 @@ export default function IndexPage() {
             <div>
               <h4 className="font-medium mb-3">Contato</h4>
               <ul className="space-y-2 text-white/80">
-                <li>contato@trophysports.com</li>
-                <li>(11) 99999-9999</li>
-                <li>São Paulo, SP</li>
+                <li>gruporochaes@gmail.com</li>
+                <li>+55 27 92000-8182</li>
+                <li>Av. Mateus Cunha Fundão, 337
+                  Sernamby, São Mateus
+                  ES, 29931-360</li>
               </ul>
             </div>
           </div>
