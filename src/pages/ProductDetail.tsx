@@ -12,7 +12,6 @@ import { ShoppingCart, ArrowLeft, Medal, Trophy, Check } from "lucide-react";
 import { Product } from "@/types/Product";
 import { toast } from "sonner";
 
-// Mock data - in a real app, this would come from an API
 const MOCK_PRODUCTS: Product[] = [
   {
     id: "1",
@@ -78,7 +77,6 @@ const MOCK_PRODUCTS: Product[] = [
   }
 ];
 
-// Cart storage in localStorage
 const addToCart = (product: Product, quantity: number = 1, customName?: string, customModality?: string) => {
   const cartItems = JSON.parse(localStorage.getItem("cart") || "[]");
   
