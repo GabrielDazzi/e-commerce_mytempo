@@ -10,6 +10,7 @@ import Cart from "./pages/Cart";
 import AdminPanel from "./pages/AdminPanel";
 import NotFound from "./pages/NotFound";
 import CategoryPage from "./pages/CategoryPage";
+import AllProducts from "./pages/AllProducts";
 
 const queryClient = new QueryClient();
 
@@ -25,6 +26,7 @@ const App = () => (
           <Route path="/carrinho" element={<Cart />} />
           <Route path="/admin" element={<AdminPanel />} />
           <Route path="/categorias/:categoryId" element={<CategoryPage />} />
+          <Route path="/produtos" element={<AllProducts />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
