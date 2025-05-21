@@ -9,6 +9,7 @@ import ProductDetail from "./pages/ProductDetail";
 import Cart from "./pages/Cart";
 import AdminPanel from "./pages/AdminPanel";
 import NotFound from "./pages/NotFound";
+import CategoryPage from "./pages/CategoryPage";
 
 const queryClient = new QueryClient();
 
@@ -23,6 +24,7 @@ const App = () => (
           <Route path="/produto/:productId" element={<ProductDetail />} />
           <Route path="/carrinho" element={<Cart />} />
           <Route path="/admin" element={<AdminPanel />} />
+          <Route path="/categorias/:categoryId" element={<CategoryPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { ShoppingCart, ArrowLeft, Medal, Trophy, Check } from "lucide-react";
 import { Product } from "@/types/Product";
 import { toast } from "sonner";
@@ -21,7 +23,16 @@ const MOCK_PRODUCTS: Product[] = [
     imageUrl: "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8c3BvcnRzJTIwbWVkYWx8ZW58MHx8MHx8fDA%3D",
     stock: 15,
     featured: true,
-    createdAt: new Date()
+    createdAt: new Date(),
+    allowCustomization: true,
+    descriptionImages: [
+      "https://images.unsplash.com/photo-1567427013953-33abb88c8390?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8bWVkYWxzfGVufDB8fDB8fHww",
+      "https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTB8fHRyb3BoeXxlbnwwfHwwfHx8MA%3D%3D"
+    ],
+    specificationImages: [
+      "https://images.unsplash.com/photo-1567427013953-33abb88c8390?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8bWVkYWxzfGVufDB8fDB8fHww"
+    ],
+    deliveryImages: []
   },
   {
     id: "2",
@@ -33,7 +44,13 @@ const MOCK_PRODUCTS: Product[] = [
     stock: 5,
     discount: 10,
     featured: true,
-    createdAt: new Date()
+    createdAt: new Date(),
+    allowCustomization: true,
+    descriptionImages: [
+      "https://images.unsplash.com/photo-1591189824397-cf6550262b4c?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTl8fHRyb3BoeXxlbnwwfHwwfHx8MA%3D%3D"
+    ],
+    specificationImages: [],
+    deliveryImages: []
   },
   {
     id: "3",
@@ -44,7 +61,8 @@ const MOCK_PRODUCTS: Product[] = [
     imageUrl: "https://images.unsplash.com/photo-1567427013953-33abb88c8390?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8bWVkYWxzfGVufDB8fDB8fHww",
     stock: 8,
     featured: false,
-    createdAt: new Date()
+    createdAt: new Date(),
+    allowCustomization: true
   },
   {
     id: "4",
@@ -55,16 +73,20 @@ const MOCK_PRODUCTS: Product[] = [
     imageUrl: "https://images.unsplash.com/photo-1591189824397-cf6550262b4c?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTl8fHRyb3BoeXxlbnwwfHwwfHx8MA%3D%3D",
     stock: 12,
     featured: false,
-    createdAt: new Date()
+    createdAt: new Date(),
+    allowCustomization: false
   }
 ];
 
 // Cart storage in localStorage
-const addToCart = (product: Product, quantity: number = 1) => {
+const addToCart = (product: Product, quantity: number = 1, customName?: string, customModality?: string) => {
   const cartItems = JSON.parse(localStorage.getItem("cart") || "[]");
   
   const existingItemIndex = cartItems.findIndex(
-    (item: { productId: string }) => item.productId === product.id
+    (item: { productId: string; customName?: string; customModality?: string }) => 
+      item.productId === product.id && 
+      item.customName === customName && 
+      item.customModality === customModality
   );
   
   if (existingItemIndex !== -1) {
@@ -73,7 +95,9 @@ const addToCart = (product: Product, quantity: number = 1) => {
     cartItems.push({
       productId: product.id,
       quantity,
-      product
+      product,
+      customName,
+      customModality
     });
   }
   
@@ -87,6 +111,8 @@ export default function ProductDetailPage() {
   const [quantity, setQuantity] = useState(1);
   const [activeTab, setActiveTab] = useState("descricao");
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
+  const [customName, setCustomName] = useState("");
+  const [customModality, setCustomModality] = useState("");
   
   useEffect(() => {
     // Simulate API call
@@ -116,7 +142,7 @@ export default function ProductDetailPage() {
   
   const handleAddToCart = () => {
     if (product) {
-      addToCart(product, quantity);
+      addToCart(product, quantity, customName, customModality);
       toast.success(`${quantity} ${quantity > 1 ? 'unidades' : 'unidade'} de ${product.name} adicionadas ao carrinho!`);
     }
   };
@@ -240,6 +266,33 @@ export default function ProductDetailPage() {
               
               <Separator />
               
+              {product.allowCustomization && (
+                <div className="space-y-4">
+                  <h3 className="font-medium">Personalização</h3>
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <Label htmlFor="customName">Nome a ser gravado</Label>
+                      <Input
+                        id="customName"
+                        placeholder="Ex: João Silva"
+                        value={customName}
+                        onChange={(e) => setCustomName(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="customModality">Modalidade</Label>
+                      <Input
+                        id="customModality"
+                        placeholder="Ex: Atletismo"
+                        value={customModality}
+                        onChange={(e) => setCustomModality(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <Separator />
+                </div>
+              )}
+              
               {product.stock > 0 ? (
                 <div className="space-y-4">
                   <div className="flex items-center gap-2">
@@ -327,11 +380,24 @@ export default function ProductDetailPage() {
                   {product.description.split('\n\n').map((paragraph, index) => (
                     <p key={index} className="mb-4">{paragraph}</p>
                   ))}
+                  
+                  {product.descriptionImages && product.descriptionImages.length > 0 && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+                      {product.descriptionImages.map((img, index) => (
+                        <img 
+                          key={index}
+                          src={img} 
+                          alt={`${product.name} - imagem ${index + 1}`}
+                          className="rounded-md w-full h-auto object-cover"
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
               </TabsContent>
               
               <TabsContent value="especificacoes">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="bg-muted/50 p-4 rounded-lg">
                     <h4 className="font-medium mb-2">Informações do Produto</h4>
                     <ul className="space-y-2">
@@ -369,6 +435,22 @@ export default function ProductDetailPage() {
                       </li>
                     </ul>
                   </div>
+                  
+                  {product.specificationImages && product.specificationImages.length > 0 && (
+                    <div className="col-span-1 md:col-span-2 mt-4">
+                      <h4 className="font-medium mb-2">Imagens detalhadas</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {product.specificationImages.map((img, index) => (
+                          <img 
+                            key={index}
+                            src={img} 
+                            alt={`${product.name} - especificação ${index + 1}`}
+                            className="rounded-md w-full h-auto object-cover"
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </TabsContent>
               
@@ -405,6 +487,22 @@ export default function ProductDetailPage() {
                       </li>
                     </ul>
                   </div>
+                  
+                  {product.deliveryImages && product.deliveryImages.length > 0 && (
+                    <div className="mt-4">
+                      <h4 className="font-medium mb-2">Imagens de entrega</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {product.deliveryImages.map((img, index) => (
+                          <img 
+                            key={index}
+                            src={img} 
+                            alt={`${product.name} - entrega ${index + 1}`}
+                            className="rounded-md w-full h-auto object-cover"
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </TabsContent>
             </Tabs>
@@ -466,6 +564,20 @@ export default function ProductDetailPage() {
   );
 }
 
+// Function to get category label
+function getCategoryLabel(category: string): string {
+  switch (category) {
+    case "porta-medalhas":
+      return "Porta Medalhas";
+    case "trofeus":
+      return "Troféus";
+    case "medalhas":
+      return "Medalhas";
+    default:
+      return category;
+  }
+}
+
 function Badge({ category }: { category: string }) {
   let icon;
   let label = "";
@@ -494,17 +606,4 @@ function Badge({ category }: { category: string }) {
       {label}
     </span>
   );
-}
-
-function getCategoryLabel(category: string): string {
-  switch (category) {
-    case "porta-medalhas":
-      return "Porta Medalhas";
-    case "trofeus":
-      return "Troféus";
-    case "medalhas":
-      return "Medalhas";
-    default:
-      return category;
-  }
 }

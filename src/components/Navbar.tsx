@@ -31,9 +31,8 @@ export function Navbar() {
                 </Link>
                 <nav className="flex flex-col gap-2">
                   <Link to="/" className="px-2 py-1 hover:bg-muted rounded-md">Início</Link>
-                  <Link to="/categorias/medalhas" className="px-2 py-1 hover:bg-muted rounded-md">Porta Medalhas</Link>
+                  <Link to="/categorias/porta-medalhas" className="px-2 py-1 hover:bg-muted rounded-md">Porta Medalhas</Link>
                   <Link to="/categorias/trofeus" className="px-2 py-1 hover:bg-muted rounded-md">Troféus</Link>
-                  <Link to="/admin" className="px-2 py-1 hover:bg-muted rounded-md">Painel Admin</Link>
                 </nav>
               </div>
             </SheetContent>
@@ -50,14 +49,11 @@ export function Navbar() {
             <Link to="/" className={`text-sm font-medium hover:text-primary ${location.pathname === '/' ? 'text-primary' : 'text-muted-foreground'}`}>
               Início
             </Link>
-            <Link to="/categorias/medalhas" className={`text-sm font-medium hover:text-primary ${location.pathname.includes('medalhas') ? 'text-primary' : 'text-muted-foreground'}`}>
+            <Link to="/categorias/porta-medalhas" className={`text-sm font-medium hover:text-primary ${location.pathname.includes('porta-medalhas') ? 'text-primary' : 'text-muted-foreground'}`}>
               Porta Medalhas
             </Link>
             <Link to="/categorias/trofeus" className={`text-sm font-medium hover:text-primary ${location.pathname.includes('trofeus') ? 'text-primary' : 'text-muted-foreground'}`}>
               Troféus
-            </Link>
-            <Link to="/admin" className={`text-sm font-medium hover:text-primary ${location.pathname.includes('admin') ? 'text-primary' : 'text-muted-foreground'}`}>
-              Painel Admin
             </Link>
           </nav>
         )}
