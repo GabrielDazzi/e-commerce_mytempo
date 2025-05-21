@@ -1,3 +1,4 @@
+
 import * as React from "react"
 import useEmblaCarousel, {
   type UseEmblaCarouselType,
@@ -17,6 +18,9 @@ type CarouselProps = {
   plugins?: CarouselPlugin
   orientation?: "horizontal" | "vertical"
   setApi?: (api: CarouselApi) => void
+  autoPlay?: boolean
+  interval?: number
+  loop?: boolean
 }
 
 type CarouselContextProps = {
@@ -26,6 +30,9 @@ type CarouselContextProps = {
   scrollNext: () => void
   canScrollPrev: boolean
   canScrollNext: boolean
+  autoPlay?: boolean
+  interval?: number
+  loop?: boolean
 } & CarouselProps
 
 const CarouselContext = React.createContext<CarouselContextProps | null>(null)
@@ -52,19 +59,34 @@ const Carousel = React.forwardRef<
       plugins,
       className,
       children,
+      autoPlay = false,
+      interval = 3000,
+      loop = false,
       ...props
     },
     ref
   ) => {
-    const [carouselRef, api] = useEmblaCarousel(
-      {
-        ...opts,
-        axis: orientation === "horizontal" ? "x" : "y",
-      },
-      plugins
-    )
+    const options = {
+      ...opts,
+      axis: orientation === "horizontal" ? "x" : "y",
+      loop,
+    };
+    
+    const [carouselRef, api] = useEmblaCarousel(options, plugins)
     const [canScrollPrev, setCanScrollPrev] = React.useState(false)
     const [canScrollNext, setCanScrollNext] = React.useState(false)
+    
+    // Auto-play functionality
+    React.useEffect(() => {
+      if (!autoPlay || !api) return;
+      
+      const intervalId = setInterval(() => {
+        api.scrollNext();
+        // If loop is enabled and we're at the end, scrollNext will go back to the start
+      }, interval);
+      
+      return () => clearInterval(intervalId);
+    }, [api, autoPlay, interval]);
 
     const onSelect = React.useCallback((api: CarouselApi) => {
       if (!api) {
@@ -130,6 +152,9 @@ const Carousel = React.forwardRef<
           scrollNext,
           canScrollPrev,
           canScrollNext,
+          autoPlay,
+          interval,
+          loop,
         }}
       >
         <div

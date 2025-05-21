@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Product } from "@/types/Product";
 import { Navbar } from "@/components/Navbar";
@@ -7,8 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Trophy, Medal } from "lucide-react";
+import { Trophy, Medal, Scissors } from "lucide-react";
 import { toast } from "sonner";
+import { 
+  Carousel, 
+  CarouselContent, 
+  CarouselItem 
+} from "@/components/ui/carousel";
 
 // Mock data - in a real app, this would come from an API
 const MOCK_PRODUCTS: Product[] = [
@@ -174,42 +178,62 @@ export default function IndexPage() {
   };
   
   const featuredProducts = products.filter(product => product.featured);
+
+  // Carousel images for the hero background
+  const heroImages = [
+    "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=800&auto=format&fit=crop&q=60",
+    "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=800&auto=format&fit=crop&q=60",
+    "https://images.unsplash.com/photo-1587723958656-ee042cc565a1?w=800&auto=format&fit=crop&q=60",
+    "https://images.unsplash.com/photo-1567427013953-33abb88c8390?w=800&auto=format&fit=crop&q=60"
+  ];
   
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
       
       <main className="flex-1">
-        {/* Hero Section */}
-        <section className="bg-gradient-to-r from-sport-blue to-blue-800 text-white py-12 md:py-16">
-          <div className="container px-4 md:px-6">
-            <div className="flex flex-col md:flex-row items-center gap-6">
-              <div className="md:w-1/2 space-y-4">
+        {/* Hero Section with Carousel Background */}
+        <section className="relative overflow-hidden">
+          {/* Carousel Background */}
+          <div className="absolute inset-0 w-full h-full">
+            <Carousel className="w-full h-full" autoPlay loop interval={5000}>
+              <CarouselContent className="h-full">
+                {heroImages.map((image, index) => (
+                  <CarouselItem key={index} className="h-full">
+                    <div 
+                      className="w-full h-[500px] bg-cover bg-center" 
+                      style={{ 
+                        backgroundImage: `url(${image})`,
+                      }}
+                    >
+                      <div className="absolute inset-0 bg-black bg-opacity-60"></div>
+                    </div>
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+            </Carousel>
+          </div>
+          
+          {/* Hero Content */}
+          <div className="relative z-10 py-20 px-4">
+            <div className="container mx-auto text-center">
+              <div className="max-w-xl mx-auto space-y-6">
                 <div className="inline-block bg-sport-gold px-3 py-1 rounded-full text-sport-dark font-medium text-sm mb-2">
                   Produtos de alta qualidade
                 </div>
-                <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight">
+                <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-white">
                   Os melhores porta medalhas e troféus para seus momentos especiais
                 </h1>
-                <p className="text-lg text-white/90 max-w-md">
+                <p className="text-lg text-white/90 max-w-md mx-auto">
                   Eternize suas conquistas com nossos produtos exclusivos, feitos para celebrar cada vitória.
                 </p>
-                <div className="flex flex-wrap gap-3 pt-2">
-                  <Button size="lg" className="bg-sport-gold text-sport-dark hover:bg-sport-gold/90">
+                <div className="flex flex-wrap justify-center gap-3 pt-2">
+                  <Button size="lg" className="bg-sport-red text-white hover:bg-sport-red/90">
                     Ver Produtos
                   </Button>
-                  <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-sport-blue">
+                  <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-sport-red">
                     Saiba Mais
                   </Button>
-                </div>
-              </div>
-              <div className="md:w-1/2">
-                <div className="relative h-64 md:h-80 w-full rounded-lg overflow-hidden">
-                  <img 
-                    src="https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8c3BvcnRzJTIwbWVkYWx8ZW58MHx8MHx8fDA%3D" 
-                    alt="Porta medalhas e troféus"
-                    className="object-cover w-full h-full"
-                  />
                 </div>
               </div>
             </div>
@@ -380,7 +404,7 @@ export default function IndexPage() {
         <div className="container px-4 md:px-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div>
-              <h3 className="text-sport-gold font-bold text-lg mb-3">TrophySports</h3>
+              <h3 className="text-sport-gold font-bold text-lg mb-3">Oficina do Corte</h3>
               <p className="text-white/80">
                 Especializados em porta medalhas, troféus e artigos para celebrar suas conquistas esportivas.
               </p>
@@ -404,7 +428,7 @@ export default function IndexPage() {
             </div>
           </div>
           <div className="border-t border-white/10 mt-8 pt-8 text-center text-white/60">
-            <p>&copy; {new Date().getFullYear()} TrophySports. Todos os direitos reservados.</p>
+            <p>&copy; {new Date().getFullYear()} Oficina do Corte. Todos os direitos reservados.</p>
           </div>
         </div>
       </footer>
