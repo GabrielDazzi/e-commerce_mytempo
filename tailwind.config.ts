@@ -64,7 +64,7 @@ export default {
 					ring: 'hsl(var(--sidebar-ring))'
 				},
                 sport: {
-                    blue: '#0057B7',
+                    red: 'rgb(209, 81, 50)',
                     gold: '#FFD700',
                     silver: '#C0C0C0',
                     bronze: '#CD7F32',
