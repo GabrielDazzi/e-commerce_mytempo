@@ -4,7 +4,6 @@ import { useParams, Link } from "react-router-dom";
 import { Navbar } from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -77,14 +76,15 @@ const MOCK_PRODUCTS: Product[] = [
   }
 ];
 
-const addToCart = (product: Product, quantity: number = 1, customName?: string, customModality?: string) => {
+const addToCart = (product: Product, quantity: number = 1, customName?: string, customModality?: string, customColor?: string) => {
   const cartItems = JSON.parse(localStorage.getItem("cart") || "[]");
   
   const existingItemIndex = cartItems.findIndex(
-    (item: { productId: string; customName?: string; customModality?: string }) => 
+    (item: { productId: string; customName?: string; customModality?: string; customColor?: string }) => 
       item.productId === product.id && 
       item.customName === customName && 
-      item.customModality === customModality
+      item.customModality === customModality &&
+      item.customColor === customColor
   );
   
   if (existingItemIndex !== -1) {
@@ -95,22 +95,33 @@ const addToCart = (product: Product, quantity: number = 1, customName?: string, 
       quantity,
       product,
       customName,
-      customModality
+      customModality,
+      customColor
     });
   }
   
   localStorage.setItem("cart", JSON.stringify(cartItems));
 };
 
+// Array de cores disponíveis
+const AVAILABLE_COLORS = [
+  { name: "Dourado", value: "#FFD700" },
+  { name: "Prata", value: "#C0C0C0" },
+  { name: "Bronze", value: "#CD7F32" },
+  { name: "Preto", value: "#000000" },
+  { name: "Azul", value: "#0000FF" },
+  { name: "Vermelho", value: "#FF0000" },
+];
+
 export default function ProductDetailPage() {
   const { productId } = useParams<{ productId: string }>();
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
-  const [activeTab, setActiveTab] = useState("descricao");
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const [customName, setCustomName] = useState("");
   const [customModality, setCustomModality] = useState("");
+  const [selectedColor, setSelectedColor] = useState<string>(AVAILABLE_COLORS[0].value);
   
   useEffect(() => {
     // Simulate API call
@@ -140,7 +151,7 @@ export default function ProductDetailPage() {
   
   const handleAddToCart = () => {
     if (product) {
-      addToCart(product, quantity, customName, customModality);
+      addToCart(product, quantity, customName, customModality, selectedColor);
       toast.success(`${quantity} ${quantity > 1 ? 'unidades' : 'unidade'} de ${product.name} adicionadas ao carrinho!`);
     }
   };
@@ -286,6 +297,23 @@ export default function ProductDetailPage() {
                         onChange={(e) => setCustomModality(e.target.value)}
                       />
                     </div>
+                    
+                    {/* Seletor de cores */}
+                    <div className="space-y-2">
+                      <Label>Cor</Label>
+                      <div className="flex items-center gap-3">
+                        {AVAILABLE_COLORS.map((color) => (
+                          <button
+                            key={color.value}
+                            className={`w-8 h-8 rounded-full border-2 ${selectedColor === color.value ? 'border-black ring-2 ring-offset-2 ring-primary' : 'border-gray-300'}`}
+                            style={{ backgroundColor: color.value, borderColor: color.value === '#000000' ? '#333' : undefined }}
+                            onClick={() => setSelectedColor(color.value)}
+                            title={color.name}
+                            aria-label={`Selecionar cor ${color.name}`}
+                          />
+                        ))}
+                      </div>
+                    </div>
                   </div>
                   <Separator />
                 </div>
@@ -364,16 +392,12 @@ export default function ProductDetailPage() {
             </div>
           </div>
           
-          {/* Product Details */}
-          <div className="mb-12">
-            <Tabs defaultValue="descricao" value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="mb-6">
-                <TabsTrigger value="descricao">Descrição</TabsTrigger>
-                <TabsTrigger value="especificacoes">Especificações</TabsTrigger>
-                <TabsTrigger value="entrega">Entrega</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="descricao" className="text-muted-foreground">
+          {/* Product Details - Now displayed sequentially without tabs */}
+          <div className="space-y-12 mb-12">
+            {/* Descrição */}
+            <section>
+              <h2 className="text-xl font-bold mb-6 pb-2 border-b">Descrição</h2>
+              <div className="text-muted-foreground">
                 <div className="prose max-w-none">
                   {product.description.split('\n\n').map((paragraph, index) => (
                     <p key={index} className="mb-4">{paragraph}</p>
@@ -392,118 +416,122 @@ export default function ProductDetailPage() {
                     </div>
                   )}
                 </div>
-              </TabsContent>
-              
-              <TabsContent value="especificacoes">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="bg-muted/50 p-4 rounded-lg">
-                    <h4 className="font-medium mb-2">Informações do Produto</h4>
-                    <ul className="space-y-2">
-                      <li className="flex justify-between">
-                        <span className="text-muted-foreground">Categoria</span>
-                        <span className="font-medium">{getCategoryLabel(product.category)}</span>
-                      </li>
-                      <li className="flex justify-between">
-                        <span className="text-muted-foreground">Estoque</span>
-                        <span className="font-medium">{product.stock} unidades</span>
-                      </li>
-                      <li className="flex justify-between">
-                        <span className="text-muted-foreground">Código</span>
-                        <span className="font-medium">PROD-{product.id}</span>
-                      </li>
-                    </ul>
-                  </div>
-                  
-                  <div className="bg-muted/50 p-4 rounded-lg">
-                    <h4 className="font-medium mb-2">Detalhes Adicionais</h4>
-                    <ul className="space-y-2">
-                      <li className="flex justify-between">
-                        <span className="text-muted-foreground">Material</span>
-                        <span className="font-medium">
-                          {product.category === "porta-medalhas" ? "Alumínio" : "Metal banhado"}
-                        </span>
-                      </li>
-                      <li className="flex justify-between">
-                        <span className="text-muted-foreground">Garantia</span>
-                        <span className="font-medium">30 dias</span>
-                      </li>
-                      <li className="flex justify-between">
-                        <span className="text-muted-foreground">Origem</span>
-                        <span className="font-medium">Brasil</span>
-                      </li>
-                    </ul>
-                  </div>
-                  
-                  {product.specificationImages && product.specificationImages.length > 0 && (
-                    <div className="col-span-1 md:col-span-2 mt-4">
-                      <h4 className="font-medium mb-2">Imagens detalhadas</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {product.specificationImages.map((img, index) => (
-                          <img 
-                            key={index}
-                            src={img} 
-                            alt={`${product.name} - especificação ${index + 1}`}
-                            className="rounded-md w-full h-auto object-cover"
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  )}
+              </div>
+            </section>
+            
+            {/* Especificações */}
+            <section>
+              <h2 className="text-xl font-bold mb-6 pb-2 border-b">Especificações</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-muted/50 p-4 rounded-lg">
+                  <h4 className="font-medium mb-2">Informações do Produto</h4>
+                  <ul className="space-y-2">
+                    <li className="flex justify-between">
+                      <span className="text-muted-foreground">Categoria</span>
+                      <span className="font-medium">{getCategoryLabel(product.category)}</span>
+                    </li>
+                    <li className="flex justify-between">
+                      <span className="text-muted-foreground">Estoque</span>
+                      <span className="font-medium">{product.stock} unidades</span>
+                    </li>
+                    <li className="flex justify-between">
+                      <span className="text-muted-foreground">Código</span>
+                      <span className="font-medium">PROD-{product.id}</span>
+                    </li>
+                  </ul>
                 </div>
-              </TabsContent>
-              
-              <TabsContent value="entrega">
-                <div className="space-y-4">
-                  <div className="bg-muted/50 p-4 rounded-lg">
-                    <h4 className="font-medium mb-2">Informações de Entrega</h4>
-                    <ul className="space-y-2">
-                      <li className="flex items-start gap-2">
-                        <Check className="h-4 w-4 text-green-600 mt-1" />
-                        <span>Envio para todo o Brasil através dos Correios ou transportadoras parceiras.</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <Check className="h-4 w-4 text-green-600 mt-1" />
-                        <span>Prazo de envio: 1-3 dias úteis após a confirmação do pagamento.</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <Check className="h-4 w-4 text-green-600 mt-1" />
-                        <span>Frete grátis para compras acima de R$300,00 (válido apenas para Sul e Sudeste).</span>
-                      </li>
-                    </ul>
-                  </div>
-                  
-                  <div className="bg-muted/50 p-4 rounded-lg">
-                    <h4 className="font-medium mb-2">Condições de Troca e Devolução</h4>
-                    <ul className="space-y-2">
-                      <li className="flex items-start gap-2">
-                        <Check className="h-4 w-4 text-green-600 mt-1" />
-                        <span>Você tem até 7 dias após o recebimento para solicitar a troca ou devolução do produto.</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <Check className="h-4 w-4 text-green-600 mt-1" />
-                        <span>O produto deve estar em perfeitas condições, na embalagem original e com todos os acessórios.</span>
-                      </li>
-                    </ul>
-                  </div>
-                  
-                  {product.deliveryImages && product.deliveryImages.length > 0 && (
-                    <div className="mt-4">
-                      <h4 className="font-medium mb-2">Imagens de entrega</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {product.deliveryImages.map((img, index) => (
-                          <img 
-                            key={index}
-                            src={img} 
-                            alt={`${product.name} - entrega ${index + 1}`}
-                            className="rounded-md w-full h-auto object-cover"
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                
+                <div className="bg-muted/50 p-4 rounded-lg">
+                  <h4 className="font-medium mb-2">Detalhes Adicionais</h4>
+                  <ul className="space-y-2">
+                    <li className="flex justify-between">
+                      <span className="text-muted-foreground">Material</span>
+                      <span className="font-medium">
+                        {product.category === "porta-medalhas" ? "Alumínio" : "Metal banhado"}
+                      </span>
+                    </li>
+                    <li className="flex justify-between">
+                      <span className="text-muted-foreground">Garantia</span>
+                      <span className="font-medium">30 dias</span>
+                    </li>
+                    <li className="flex justify-between">
+                      <span className="text-muted-foreground">Origem</span>
+                      <span className="font-medium">Brasil</span>
+                    </li>
+                  </ul>
                 </div>
-              </TabsContent>
-            </Tabs>
+                
+                {product.specificationImages && product.specificationImages.length > 0 && (
+                  <div className="col-span-1 md:col-span-2 mt-4">
+                    <h4 className="font-medium mb-2">Imagens detalhadas</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {product.specificationImages.map((img, index) => (
+                        <img 
+                          key={index}
+                          src={img} 
+                          alt={`${product.name} - especificação ${index + 1}`}
+                          className="rounded-md w-full h-auto object-cover"
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </section>
+            
+            {/* Entrega */}
+            <section>
+              <h2 className="text-xl font-bold mb-6 pb-2 border-b">Entrega</h2>
+              <div className="space-y-4">
+                <div className="bg-muted/50 p-4 rounded-lg">
+                  <h4 className="font-medium mb-2">Informações de Entrega</h4>
+                  <ul className="space-y-2">
+                    <li className="flex items-start gap-2">
+                      <Check className="h-4 w-4 text-green-600 mt-1" />
+                      <span>Envio para todo o Brasil através dos Correios ou transportadoras parceiras.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Check className="h-4 w-4 text-green-600 mt-1" />
+                      <span>Prazo de envio: 1-3 dias úteis após a confirmação do pagamento.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Check className="h-4 w-4 text-green-600 mt-1" />
+                      <span>Frete grátis para compras acima de R$300,00 (válido apenas para Sul e Sudeste).</span>
+                    </li>
+                  </ul>
+                </div>
+                
+                <div className="bg-muted/50 p-4 rounded-lg">
+                  <h4 className="font-medium mb-2">Condições de Troca e Devolução</h4>
+                  <ul className="space-y-2">
+                    <li className="flex items-start gap-2">
+                      <Check className="h-4 w-4 text-green-600 mt-1" />
+                      <span>Você tem até 7 dias após o recebimento para solicitar a troca ou devolução do produto.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Check className="h-4 w-4 text-green-600 mt-1" />
+                      <span>O produto deve estar em perfeitas condições, na embalagem original e com todos os acessórios.</span>
+                    </li>
+                  </ul>
+                </div>
+                
+                {product.deliveryImages && product.deliveryImages.length > 0 && (
+                  <div className="mt-4">
+                    <h4 className="font-medium mb-2">Imagens de entrega</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {product.deliveryImages.map((img, index) => (
+                        <img 
+                          key={index}
+                          src={img} 
+                          alt={`${product.name} - entrega ${index + 1}`}
+                          className="rounded-md w-full h-auto object-cover"
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </section>
           </div>
           
           {/* Related Products */}
