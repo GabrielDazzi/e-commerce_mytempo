@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,7 +29,8 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
     descriptionImages: initialData?.descriptionImages || [],
     specificationImages: initialData?.specificationImages || [],
     deliveryImages: initialData?.deliveryImages || [],
-    allowCustomization: initialData?.allowCustomization || false
+    allowCustomization: initialData?.allowCustomization || false,
+    createdAt: initialData?.createdAt || undefined
   });
   
   const [errors, setErrors] = useState<Record<string, string>>({});
