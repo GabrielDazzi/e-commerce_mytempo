@@ -1,23 +1,19 @@
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { Product, ProductFormData } from '@/types/Product';
 
-// Table name in Supabase
 const PRODUCTS_TABLE = 'products';
 
-// Helper function to convert Supabase date string to Date object
 const parseDate = (dateString: string | null): Date => {
   return dateString ? new Date(dateString) : new Date();
 };
 
-// Format product data for Supabase (convert Date to ISO string)
 const formatProductForDB = (product: ProductFormData | Product) => {
   let createdAtISO: string;
 
   if (product.createdAt instanceof Date) {
     createdAtISO = product.createdAt.toISOString();
   } else if (typeof product.createdAt === 'string' && product.createdAt) {
-    // Attempt to parse string to Date, then to ISO.
-    // If parsing fails, fall back to new Date().toISOString()
+    // if u gave me a change, i will take it
     try {
       createdAtISO = new Date(product.createdAt).toISOString();
     } catch (e) {
@@ -25,7 +21,6 @@ const formatProductForDB = (product: ProductFormData | Product) => {
       createdAtISO = new Date().toISOString();
     }
   } else {
-    // Fallback for null, undefined, or empty string
     createdAtISO = new Date().toISOString();
   }
 
