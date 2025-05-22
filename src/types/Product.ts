@@ -32,8 +32,8 @@ export type CartItem = {
 
 // Default product colors
 export const DEFAULT_PRODUCT_COLORS = [
-  '#FF0000', // Red
-  '#0000FF', // Blue
+  '#3F2D21', // Amadeirado-Escuro
+  '#D4C7B7', // Amadeirado-Claro
   '#008000', // Green
   '#FFFF00', // Yellow
   '#800080', // Purple
