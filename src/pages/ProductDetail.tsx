@@ -15,7 +15,7 @@ const MOCK_PRODUCTS: Product[] = [
   {
     id: "1",
     name: "Porta Medalhas Premium",
-    description: "Porta medalhas de metal com espaço para 20 medalhas. Ideal para atletas dedicados. Este porta medalhas premium é projetado para atletas que desejam exibir suas conquistas de forma elegante e organizada. Fabricado em metal de alta qualidade, possui ganchos resistentes que suportam medalhas de diferentes tamanhos e pesos.\n\nCaracterísticas:\n- Material: Alumínio escovado\n- Capacidade: 20 medalhas\n- Dimensões: 60cm x 15cm\n- Inclui kit de fixação na parede\n- Personalização do nome disponível por encomenda",
+    description: "Porta medalhas de metal com espaço para 20 medalhas. Ideal para atletas dedicados. Este porta medalhas premium é projetado para atletas que desejam exibir suas conquistas de forma elegante e organizada. Fabricado em metal de alta qualidade, possui ganchos resistentes que suportam medalhas de diferentes tamanhos e pesos.\n\nCaracterísticas:\n- Material: MDF\n- Capacidade: 20 medalhas\n- Dimensões: 60cm x 15cm\n- Inclui kit de fixação na parede\n- Personalização do nome disponível por encomenda",
     price: 149.99,
     category: "porta-medalhas",
     imageUrl: "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8c3BvcnRzJTIwbWVkYWx8ZW58MHx8MHx8fDA%3D",

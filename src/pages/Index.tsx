@@ -232,7 +232,7 @@ export default function IndexPage() {
                   <Button size="lg" className="bg-sport-red text-white hover:bg-sport-red/90">
                     Ver Produtos
                   </Button>
-                  <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-sport-red">
+                  <Button size="lg" className="bg-sport-red text-white hover:bg-sport-red/90">
                     Saiba Mais
                   </Button>
                 </div>
