@@ -1,4 +1,3 @@
-
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { Product, ProductFormData } from '@/types/Product';
 
@@ -12,9 +11,27 @@ const parseDate = (dateString: string | null): Date => {
 
 // Format product data for Supabase (convert Date to ISO string)
 const formatProductForDB = (product: ProductFormData | Product) => {
+  let createdAtISO: string;
+
+  if (product.createdAt instanceof Date) {
+    createdAtISO = product.createdAt.toISOString();
+  } else if (typeof product.createdAt === 'string' && product.createdAt) {
+    // Attempt to parse string to Date, then to ISO.
+    // If parsing fails, fall back to new Date().toISOString()
+    try {
+      createdAtISO = new Date(product.createdAt).toISOString();
+    } catch (e) {
+      console.warn('Invalid createdAt string, using current date:', product.createdAt);
+      createdAtISO = new Date().toISOString();
+    }
+  } else {
+    // Fallback for null, undefined, or empty string
+    createdAtISO = new Date().toISOString();
+  }
+
   return {
     ...product,
-    createdAt: product.createdAt instanceof Date ? product.createdAt.toISOString() : new Date().toISOString(),
+    createdAt: createdAtISO,
     descriptionImages: product.descriptionImages || [],
     specificationImages: product.specificationImages || [],
     deliveryImages: product.deliveryImages || [],
@@ -24,12 +41,18 @@ const formatProductForDB = (product: ProductFormData | Product) => {
 
 // Format product from DB to our application model
 const formatProductFromDB = (product: any): Product => {
+  // Garante que os valores numéricos sejam tratados corretamente,
+  // usando isNaN para fornecer um fallback caso a conversão resulte em NaN
+  const price = Number(product.price);
+  const stock = Number(product.stock);
+  const discount = Number(product.discount || 0); // Garante que discount seja 0 se null/undefined/falsy
+
   return {
     ...product,
     createdAt: parseDate(product.createdAt),
-    price: Number(product.price),
-    stock: Number(product.stock),
-    discount: product.discount ? Number(product.discount) : 0,
+    price: isNaN(price) ? 0 : price, // Se price for NaN, usa 0 como padrão
+    stock: isNaN(stock) ? 0 : stock, // Se stock for NaN, usa 0 como padrão
+    discount: isNaN(discount) ? 0 : discount, // Se discount for NaN, usa 0 como padrão
   };
 };
 
@@ -83,12 +106,12 @@ export const getAllProducts = async (): Promise<Product[]> => {
       .from(PRODUCTS_TABLE)
       .select('*')
       .order('createdAt', { ascending: false });
-    
+
     if (error) {
       console.error('Error fetching products:', error);
       throw error;
     }
-    
+
     return (data || []).map(formatProductFromDB);
   } catch (err) {
     console.error('Failed to fetch products:', err);
@@ -109,12 +132,12 @@ export const getProductById = async (id: string): Promise<Product | null> => {
       .select('*')
       .eq('id', id)
       .single();
-    
+
     if (error) {
       console.error('Error fetching product:', error);
       return null;
     }
-    
+
     return formatProductFromDB(data);
   } catch (err) {
     console.error('Failed to fetch product by ID:', err);
@@ -138,19 +161,19 @@ export const createProduct = async (product: ProductFormData): Promise<Product> 
     ...product,
     createdAt: new Date()
   });
-  
+
   try {
     const { data, error } = await supabase
       .from(PRODUCTS_TABLE)
       .insert(formattedProduct)
       .select()
       .single();
-    
+
     if (error) {
       console.error('Error creating product:', error);
       throw error;
     }
-    
+
     return formatProductFromDB(data);
   } catch (err) {
     console.error('Failed to create product:', err);
@@ -174,7 +197,7 @@ export const updateProduct = async (id: string, product: ProductFormData): Promi
   }
 
   const formattedProduct = formatProductForDB(product);
-  
+
   try {
     const { data, error } = await supabase
       .from(PRODUCTS_TABLE)
@@ -182,12 +205,12 @@ export const updateProduct = async (id: string, product: ProductFormData): Promi
       .eq('id', id)
       .select()
       .single();
-    
+
     if (error) {
       console.error('Error updating product:', error);
       throw error;
     }
-    
+
     return formatProductFromDB(data);
   } catch (err) {
     console.error('Failed to update product:', err);
@@ -211,7 +234,7 @@ export const deleteProduct = async (id: string): Promise<void> => {
       .from(PRODUCTS_TABLE)
       .delete()
       .eq('id', id);
-    
+
     if (error) {
       console.error('Error deleting product:', error);
       throw error;
@@ -225,7 +248,7 @@ export const deleteProduct = async (id: string): Promise<void> => {
 // Search products
 export const searchProducts = async (searchTerm: string): Promise<Product[]> => {
   if (!isSupabaseConfigured()) {
-    return mockProducts.filter(product => 
+    return mockProducts.filter(product =>
       product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       product.description.toLowerCase().includes(searchTerm.toLowerCase())
     );
@@ -237,12 +260,12 @@ export const searchProducts = async (searchTerm: string): Promise<Product[]> => 
       .select('*')
       .or(`name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`)
       .order('createdAt', { ascending: false });
-    
+
     if (error) {
       console.error('Error searching products:', error);
       throw error;
     }
-    
+
     return (data || []).map(formatProductFromDB);
   } catch (err) {
     console.error('Failed to search products:', err);
@@ -262,12 +285,12 @@ export const getProductsByCategory = async (category: string): Promise<Product[]
       .select('*')
       .eq('category', category)
       .order('createdAt', { ascending: false });
-    
+
     if (error) {
       console.error('Error fetching products by category:', error);
       throw error;
     }
-    
+
     return (data || []).map(formatProductFromDB);
   } catch (err) {
     console.error('Failed to fetch products by category:', err);
@@ -287,12 +310,12 @@ export const getFeaturedProducts = async (): Promise<Product[]> => {
       .select('*')
       .eq('featured', true)
       .order('createdAt', { ascending: false });
-    
+
     if (error) {
       console.error('Error fetching featured products:', error);
       throw error;
     }
-    
+
     return (data || []).map(formatProductFromDB);
   } catch (err) {
     console.error('Failed to fetch featured products:', err);
