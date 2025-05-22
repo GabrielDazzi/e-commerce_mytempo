@@ -78,17 +78,22 @@ export const getAllProducts = async (): Promise<Product[]> => {
     return mockProducts;
   }
 
-  const { data, error } = await supabase
-    .from(PRODUCTS_TABLE)
-    .select('*')
-    .order('createdAt', { ascending: false });
-  
-  if (error) {
-    console.error('Error fetching products:', error);
-    throw error;
+  try {
+    const { data, error } = await supabase
+      .from(PRODUCTS_TABLE)
+      .select('*')
+      .order('createdAt', { ascending: false });
+    
+    if (error) {
+      console.error('Error fetching products:', error);
+      throw error;
+    }
+    
+    return (data || []).map(formatProductFromDB);
+  } catch (err) {
+    console.error('Failed to fetch products:', err);
+    return [];
   }
-  
-  return (data || []).map(formatProductFromDB);
 };
 
 // Get product by ID
@@ -98,18 +103,23 @@ export const getProductById = async (id: string): Promise<Product | null> => {
     return product || null;
   }
 
-  const { data, error } = await supabase
-    .from(PRODUCTS_TABLE)
-    .select('*')
-    .eq('id', id)
-    .single();
-  
-  if (error) {
-    console.error('Error fetching product:', error);
+  try {
+    const { data, error } = await supabase
+      .from(PRODUCTS_TABLE)
+      .select('*')
+      .eq('id', id)
+      .single();
+    
+    if (error) {
+      console.error('Error fetching product:', error);
+      return null;
+    }
+    
+    return formatProductFromDB(data);
+  } catch (err) {
+    console.error('Failed to fetch product by ID:', err);
     return null;
   }
-  
-  return formatProductFromDB(data);
 };
 
 // Create a new product
@@ -129,18 +139,23 @@ export const createProduct = async (product: ProductFormData): Promise<Product> 
     createdAt: new Date()
   });
   
-  const { data, error } = await supabase
-    .from(PRODUCTS_TABLE)
-    .insert(formattedProduct)
-    .select()
-    .single();
-  
-  if (error) {
-    console.error('Error creating product:', error);
-    throw error;
+  try {
+    const { data, error } = await supabase
+      .from(PRODUCTS_TABLE)
+      .insert(formattedProduct)
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Error creating product:', error);
+      throw error;
+    }
+    
+    return formatProductFromDB(data);
+  } catch (err) {
+    console.error('Failed to create product:', err);
+    throw err;
   }
-  
-  return formatProductFromDB(data);
 };
 
 // Update an existing product
@@ -160,19 +175,24 @@ export const updateProduct = async (id: string, product: ProductFormData): Promi
 
   const formattedProduct = formatProductForDB(product);
   
-  const { data, error } = await supabase
-    .from(PRODUCTS_TABLE)
-    .update(formattedProduct)
-    .eq('id', id)
-    .select()
-    .single();
-  
-  if (error) {
-    console.error('Error updating product:', error);
-    throw error;
+  try {
+    const { data, error } = await supabase
+      .from(PRODUCTS_TABLE)
+      .update(formattedProduct)
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Error updating product:', error);
+      throw error;
+    }
+    
+    return formatProductFromDB(data);
+  } catch (err) {
+    console.error('Failed to update product:', err);
+    throw err;
   }
-  
-  return formatProductFromDB(data);
 };
 
 // Delete a product
@@ -186,14 +206,19 @@ export const deleteProduct = async (id: string): Promise<void> => {
     return;
   }
 
-  const { error } = await supabase
-    .from(PRODUCTS_TABLE)
-    .delete()
-    .eq('id', id);
-  
-  if (error) {
-    console.error('Error deleting product:', error);
-    throw error;
+  try {
+    const { error } = await supabase
+      .from(PRODUCTS_TABLE)
+      .delete()
+      .eq('id', id);
+    
+    if (error) {
+      console.error('Error deleting product:', error);
+      throw error;
+    }
+  } catch (err) {
+    console.error('Failed to delete product:', err);
+    throw err;
   }
 };
 
@@ -206,18 +231,23 @@ export const searchProducts = async (searchTerm: string): Promise<Product[]> => 
     );
   }
 
-  const { data, error } = await supabase
-    .from(PRODUCTS_TABLE)
-    .select('*')
-    .or(`name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`)
-    .order('createdAt', { ascending: false });
-  
-  if (error) {
-    console.error('Error searching products:', error);
-    throw error;
+  try {
+    const { data, error } = await supabase
+      .from(PRODUCTS_TABLE)
+      .select('*')
+      .or(`name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`)
+      .order('createdAt', { ascending: false });
+    
+    if (error) {
+      console.error('Error searching products:', error);
+      throw error;
+    }
+    
+    return (data || []).map(formatProductFromDB);
+  } catch (err) {
+    console.error('Failed to search products:', err);
+    return [];
   }
-  
-  return (data || []).map(formatProductFromDB);
 };
 
 // Get products by category
@@ -226,18 +256,23 @@ export const getProductsByCategory = async (category: string): Promise<Product[]
     return mockProducts.filter(product => product.category === category);
   }
 
-  const { data, error } = await supabase
-    .from(PRODUCTS_TABLE)
-    .select('*')
-    .eq('category', category)
-    .order('createdAt', { ascending: false });
-  
-  if (error) {
-    console.error('Error fetching products by category:', error);
-    throw error;
+  try {
+    const { data, error } = await supabase
+      .from(PRODUCTS_TABLE)
+      .select('*')
+      .eq('category', category)
+      .order('createdAt', { ascending: false });
+    
+    if (error) {
+      console.error('Error fetching products by category:', error);
+      throw error;
+    }
+    
+    return (data || []).map(formatProductFromDB);
+  } catch (err) {
+    console.error('Failed to fetch products by category:', err);
+    return [];
   }
-  
-  return (data || []).map(formatProductFromDB);
 };
 
 // Get featured products
@@ -246,16 +281,21 @@ export const getFeaturedProducts = async (): Promise<Product[]> => {
     return mockProducts.filter(product => product.featured);
   }
 
-  const { data, error } = await supabase
-    .from(PRODUCTS_TABLE)
-    .select('*')
-    .eq('featured', true)
-    .order('createdAt', { ascending: false });
-  
-  if (error) {
-    console.error('Error fetching featured products:', error);
-    throw error;
+  try {
+    const { data, error } = await supabase
+      .from(PRODUCTS_TABLE)
+      .select('*')
+      .eq('featured', true)
+      .order('createdAt', { ascending: false });
+    
+    if (error) {
+      console.error('Error fetching featured products:', error);
+      throw error;
+    }
+    
+    return (data || []).map(formatProductFromDB);
+  } catch (err) {
+    console.error('Failed to fetch featured products:', err);
+    return [];
   }
-  
-  return (data || []).map(formatProductFromDB);
 };

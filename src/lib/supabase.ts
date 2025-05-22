@@ -17,29 +17,67 @@ export const supabase = hasSupabaseConfig
 function createMockClient() {
   console.warn('⚠️ Supabase credentials missing! Using mock client. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY environment variables.');
   
-  // Return a mock implementation that logs operations instead of executing them
-  return {
-    from: (table: string) => ({
+  // Create a chainable mock builder function
+  const createChainableMock = (tableName: string) => {
+    const mockBuilder = {
+      data: null as any,
+      error: null as any,
+      // Select operation (starting point)
       select: () => {
-        console.log(`Mock: SELECT from ${table}`);
-        return { data: [], error: null };
+        console.log(`Mock: SELECT from ${tableName}`);
+        return mockBuilder;
       },
-      insert: () => {
-        console.log(`Mock: INSERT into ${table}`);
-        return { data: null, error: null };
+      // Insert operation
+      insert: (data: any) => {
+        console.log(`Mock: INSERT into ${tableName}`, data);
+        return mockBuilder;
       },
-      update: () => {
-        console.log(`Mock: UPDATE in ${table}`);
-        return { data: null, error: null };
+      // Update operation
+      update: (data: any) => {
+        console.log(`Mock: UPDATE in ${tableName}`, data);
+        return mockBuilder;
       },
+      // Delete operation
       delete: () => {
-        console.log(`Mock: DELETE from ${table}`);
-        return { data: null, error: null };
+        console.log(`Mock: DELETE from ${tableName}`);
+        return mockBuilder;
       },
-      eq: () => ({ data: null, error: null }),
-      order: () => ({ data: null, error: null }),
-      single: () => ({ data: null, error: null }),
-    }),
+      // Filter by equality
+      eq: (column: string, value: any) => {
+        console.log(`Mock: WHERE ${column} = ${value} in ${tableName}`);
+        return mockBuilder;
+      },
+      // Order results
+      order: (column: string, options: any = {}) => {
+        console.log(`Mock: ORDER BY ${column} in ${tableName}`, options);
+        return mockBuilder;
+      },
+      // Limit to a single result
+      single: () => {
+        console.log(`Mock: Get single result from ${tableName}`);
+        return mockBuilder;
+      },
+      // Filter with OR conditions
+      or: (conditions: string) => {
+        console.log(`Mock: OR conditions ${conditions} in ${tableName}`);
+        return mockBuilder;
+      },
+      // Execute the query and return mock data
+      then: (callback: (result: any) => void) => {
+        // For promises (if someone uses await)
+        setTimeout(() => {
+          callback({ data: [], error: null });
+        }, 0);
+        return Promise.resolve({ data: [], error: null });
+      }
+    };
+    
+    return mockBuilder;
+  };
+
+  // Return a mock implementation
+  return {
+    from: (table: string) => createChainableMock(table),
     storage: {
       from: (bucket: string) => ({
         upload: () => {
