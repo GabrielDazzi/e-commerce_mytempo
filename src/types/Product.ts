@@ -18,7 +18,10 @@ export interface Product {
   selectedColor?: string;
 }
 
-export type ProductFormData = Omit<Product, 'id' | 'createdAt'>;
+// Updated to include createdAt but make it optional
+export type ProductFormData = Omit<Product, 'id'> & {
+  createdAt?: Date;
+};
 
 export type CartItem = {
   productId: string;
@@ -38,4 +41,3 @@ export const DEFAULT_PRODUCT_COLORS = [
   '#800080', // Purple
   '#FFA500', // Orange
 ];
-

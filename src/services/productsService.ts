@@ -164,4 +164,3 @@ export const getFeaturedProducts = async (): Promise<Product[]> => {
   
   return (data || []).map(formatProductFromDB);
 };
-
