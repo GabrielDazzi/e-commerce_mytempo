@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,80 +24,79 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
     stock: initialData?.stock || 1,
     featured: initialData?.featured || false,
     discount: initialData?.discount || 0,
-    colors: initialData?.colors || DEFAULT_PRODUCT_COLORS,
+    colors: initialData?.colors || [...DEFAULT_PRODUCT_COLORS],
     descriptionImages: initialData?.descriptionImages || [],
     specificationImages: initialData?.specificationImages || [],
     deliveryImages: initialData?.deliveryImages || [],
     allowCustomization: initialData?.allowCustomization || false,
     createdAt: initialData?.createdAt || undefined
   });
-  
+
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [customColor, setCustomColor] = useState("#000000");
-  
+
   const categories = [
     { value: "porta-medalhas", label: "Porta Medalhas" },
     { value: "trofeus", label: "Troféus" },
     { value: "medalhas", label: "Medalhas" },
     { value: "acessorios", label: "Acessórios" }
   ];
-  
+
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const { name, value, type } = e.target;
     let processedValue: string | number | boolean = value;
-    
+
     if (type === 'number') {
-      processedValue = value === '' ? 0 : Number(value);
+      if (value === "") {
+        processedValue = 0;
+      } else {
+        const numValue = Number(value);
+        processedValue = isNaN(numValue) ? 0 : numValue;
+      }
     }
-    
+
     setFormData((prev) => ({
       ...prev,
       [name]: processedValue
     }));
-    
-    // Clear error when field is edited
+
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: "" }));
     }
   };
-  
+
   const handleSwitchChange = (name: string, checked: boolean) => {
     setFormData((prev) => ({
       ...prev,
       [name]: checked
     }));
   };
-  
+
   const handleCategoryChange = (value: string) => {
     setFormData((prev) => ({
       ...prev,
       category: value
     }));
-    
+
     if (errors.category) {
       setErrors((prev) => ({ ...prev, category: "" }));
     }
   };
-  
+
   const handleColorClick = (color: string) => {
-    // If color is already in the array, remove it
-    if (formData.colors?.includes(color)) {
-      setFormData(prev => ({
-        ...prev,
-        colors: prev.colors?.filter(c => c !== color)
-      }));
-    } else {
-      // Otherwise add it to the array
-      setFormData(prev => ({
-        ...prev,
-        colors: [...(prev.colors || []), color]
-      }));
-    }
+    setFormData(prev => {
+      const currentColors = prev.colors || [];
+      if (currentColors.includes(color)) {
+        return { ...prev, colors: currentColors.filter(c => c !== color) };
+      } else {
+        return { ...prev, colors: [...currentColors, color] };
+      }
+    });
   };
-  
+
   const handleAddCustomColor = () => {
     if (customColor && !formData.colors?.includes(customColor)) {
       setFormData(prev => ({
@@ -108,61 +106,74 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
       setCustomColor("#000000");
     }
   };
-  
+
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
-    
+
     if (!formData.name.trim()) {
       newErrors.name = "Nome do produto é obrigatório";
     }
-    
+
     if (!formData.description.trim()) {
       newErrors.description = "Descrição do produto é obrigatória";
     }
-    
-    if (formData.price <= 0) {
-      newErrors.price = "O preço deve ser maior que zero";
+
+    if (isNaN(Number(formData.price)) || Number(formData.price) <= 0) {
+      newErrors.price = "O preço deve ser um número válido maior que zero";
     }
-    
+
     if (!formData.category) {
       newErrors.category = "Categoria é obrigatória";
     }
-    
-    if (formData.stock < 0) {
-      newErrors.stock = "Estoque não pode ser negativo";
+
+    if (isNaN(Number(formData.stock)) || Number(formData.stock) < 0) {
+      newErrors.stock = "O estoque deve ser um número válido e não negativo";
     }
     
-    if (formData.discount && (formData.discount < 0 || formData.discount > 100)) {
-      newErrors.discount = "Desconto deve estar entre 0 e 100%";
+    if (formData.discount !== undefined && formData.discount !== null) {
+        const discountValue = Number(formData.discount);
+        if (isNaN(discountValue) || discountValue < 0 || discountValue > 100) {
+            newErrors.discount = "O desconto deve ser um número válido entre 0 e 100";
+        }
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
-  
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+    console.log("ProductForm: handleSubmit iniciado");
+
     if (!validateForm()) {
+      console.log("ProductForm: Validação falhou", errors);
       toast.error("Por favor, corrija os erros no formulário");
       return;
     }
-    
+    console.log("ProductForm: Validação passou");
+
     setIsSubmitting(true);
     
+    const dataToSubmit: ProductFormData = {
+        ...formData,
+        discount: formData.discount === undefined || formData.discount === null || isNaN(Number(formData.discount)) ? 0 : Number(formData.discount),
+        price: Number(formData.price),
+        stock: Number(formData.stock),
+    };
+    console.log("ProductForm: dataToSubmit", dataToSubmit);
+
     try {
-      onSubmit(formData);
-      toast.success(
-        initialData ? "Produto atualizado com sucesso!" : "Produto criado com sucesso!"
-      );
+      onSubmit(dataToSubmit);
+      console.log("ProductForm: onSubmit chamado");
     } catch (error) {
-      toast.error("Erro ao salvar o produto. Tente novamente.");
-      console.error("Error submitting form:", error);
+      toast.error("Erro ao submeter formulário (catch local). Tente novamente.");
+      console.error("ProductForm: Erro no try/catch do handleSubmit:", error);
     } finally {
       setIsSubmitting(false);
+      console.log("ProductForm: setIsSubmitting(false) chamado");
     }
   };
-  
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="space-y-4">
@@ -181,7 +192,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
               <p className="text-sm text-red-500">{errors.name}</p>
             )}
           </div>
-          
+
           <div className="space-y-2">
             <Label htmlFor="category">Categoria *</Label>
             <Select
@@ -205,7 +216,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
               <p className="text-sm text-red-500">{errors.category}</p>
             )}
           </div>
-          
+
           <div className="space-y-2">
             <Label htmlFor="price">Preço (R$) *</Label>
             <Input
@@ -223,7 +234,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
               <p className="text-sm text-red-500">{errors.price}</p>
             )}
           </div>
-          
+
           <div className="space-y-2">
             <Label htmlFor="discount">Desconto (%)</Label>
             <Input
@@ -242,7 +253,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
               <p className="text-sm text-red-500">{errors.discount}</p>
             )}
           </div>
-          
+
           <div className="space-y-2">
             <Label htmlFor="stock">Estoque *</Label>
             <Input
@@ -259,7 +270,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
               <p className="text-sm text-red-500">{errors.stock}</p>
             )}
           </div>
-          
+
           <div className="space-y-2">
             <Label htmlFor="imageUrl">URL da Imagem</Label>
             <Input
@@ -271,7 +282,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
             />
           </div>
         </div>
-        
+
         <div className="space-y-2">
           <Label>Cores disponíveis</Label>
           <div className="flex flex-wrap gap-2 mb-2">
@@ -280,12 +291,13 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
                 key={color}
                 type="button"
                 className={`w-8 h-8 rounded-full border-2 ${
-                  formData.colors?.includes(color) 
-                    ? 'border-black' 
+                  formData.colors?.includes(color)
+                    ? 'border-black ring-2 ring-offset-1 ring-primary'
                     : 'border-transparent'
                 }`}
                 style={{ backgroundColor: color }}
                 onClick={() => handleColorClick(color)}
+                aria-label={`Selecionar cor ${color}`}
               />
             ))}
           </div>
@@ -295,6 +307,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
               value={customColor}
               onChange={(e) => setCustomColor(e.target.value)}
               className="w-10 h-10 p-1"
+              aria-label="Selecionar cor personalizada"
             />
             <Button
               type="button"
@@ -302,35 +315,35 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
               size="sm"
               onClick={handleAddCustomColor}
             >
-              Adicionar cor personalizada
+              Adicionar cor
             </Button>
           </div>
-          <div className="flex flex-wrap gap-2 mt-2">
-            {formData.colors?.filter(c => !DEFAULT_PRODUCT_COLORS.includes(c)).map((color) => (
-              <div key={color} className="flex items-center gap-1">
-                <div
-                  className={`w-6 h-6 rounded-full border ${
-                    formData.colors?.includes(color) 
-                      ? 'border-black' 
-                      : 'border-transparent'
-                  }`}
-                  style={{ backgroundColor: color }}
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6"
-                  onClick={() => handleColorClick(color)}
-                >
-                  <span className="sr-only">Remover</span>
-                  &times;
-                </Button>
-              </div>
-            ))}
-          </div>
+          {!!formData.colors?.filter(c => !DEFAULT_PRODUCT_COLORS.includes(c)).length && (
+            <div className="flex flex-wrap gap-2 mt-2 pt-2 border-t">
+              <Label className="w-full text-xs text-muted-foreground">Cores personalizadas adicionadas:</Label>
+              {formData.colors?.filter(c => !DEFAULT_PRODUCT_COLORS.includes(c)).map((color) => (
+                <div key={color} className="flex items-center gap-1 p-1 border rounded">
+                  <div
+                    className="w-5 h-5 rounded-sm"
+                    style={{ backgroundColor: color }}
+                  />
+                  <span className="text-xs">{color}</span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-5 w-5 text-red-500 hover:text-red-700"
+                    onClick={() => handleColorClick(color)}
+                    aria-label={`Remover cor ${color}`}
+                  >
+                    &times;
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-        
+
         <div className="space-y-2">
           <Label htmlFor="description">Descrição *</Label>
           <Textarea
@@ -346,7 +359,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
             <p className="text-sm text-red-500">{errors.description}</p>
           )}
         </div>
-        
+
         <div className="flex items-center space-x-2">
           <Switch
             id="featured"
@@ -356,26 +369,26 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
           <Label htmlFor="featured">Produto em destaque</Label>
         </div>
         
-        <div className="flex items-center space-x-2">
-          <Switch
-            id="allowCustomization"
-            checked={formData.allowCustomization}
-            onCheckedChange={(checked) => handleSwitchChange('allowCustomization', checked)}
-          />
-          <Label htmlFor="allowCustomization">Permitir personalização</Label>
-        </div>
-      </div>
-      
-      <div className="flex justify-end gap-2">
-        <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
-          Cancelar
-        </Button>
-        <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? "Salvando..." : initialData ? "Atualizar Produto" : "Criar Produto"}
-        </Button>
-      </div>
-    </form>
-  );
-}
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="allowCustomization"
+                    checked={formData.allowCustomization}
+                    onCheckedChange={(checked) => handleSwitchChange('allowCustomization', checked)}
+                  />
+                  <Label htmlFor="allowCustomization">Permitir personalização</Label>
+                </div>
+              </div>
 
-export default ProductForm;
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
+                  Cancelar
+                </Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? "Salvando..." : initialData ? "Atualizar Produto" : "Criar Produto"}
+                </Button>
+              </div>
+            </form>
+          );
+        }
+
+        export default ProductForm;

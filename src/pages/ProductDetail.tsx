@@ -1,4 +1,4 @@
-
+// src/pages/ProductDetail.tsx
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Navbar } from "@/components/Navbar";
@@ -10,85 +10,22 @@ import { Label } from "@/components/ui/label";
 import { ShoppingCart, ArrowLeft, Medal, Trophy, Check } from "lucide-react";
 import { Product } from "@/types/Product";
 import { toast } from "sonner";
+import { getProductById, getProductsByCategory } from "@/services/productsService"; // Import service functions
 
-const MOCK_PRODUCTS: Product[] = [
-  {
-    id: "1",
-    name: "Porta Medalhas Premium",
-    description: "Porta medalhas de metal com espaço para 20 medalhas. Ideal para atletas dedicados. Este porta medalhas premium é projetado para atletas que desejam exibir suas conquistas de forma elegante e organizada. Fabricado em metal de alta qualidade, possui ganchos resistentes que suportam medalhas de diferentes tamanhos e pesos.\n\nCaracterísticas:\n- Material: MDF\n- Capacidade: 20 medalhas\n- Dimensões: 60cm x 15cm\n- Inclui kit de fixação na parede\n- Personalização do nome disponível por encomenda",
-    price: 149.99,
-    category: "porta-medalhas",
-    imageUrl: "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8c3BvcnRzJTIwbWVkYWx8ZW58MHx8MHx8fDA%3D",
-    stock: 15,
-    featured: true,
-    createdAt: new Date(),
-    allowCustomization: true,
-    descriptionImages: [
-      "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8c3BvcnRzJTIwbWVkYWx8ZW58MHx8MHx8fDA%3D",
-      "https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTB8fHRyb3BoeXxlbnwwfHwwfHx8MA%3D%3D"
-    ],
-    specificationImages: [
-      "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8c3BvcnRzJTIwbWVkYWx8ZW58MHx8MHx8fDA%3D"
-    ],
-    deliveryImages: [
-      "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8c3BvcnRzJTIwbWVkYWx8ZW58MHx8MHx8fDA%3D"
-    ]
-  },
-  {
-    id: "2",
-    name: "Troféu Campeão Nacional",
-    description: "Troféu banhado a ouro para premiação de campeonatos nacionais. Este troféu de prestígio é ideal para premiações de alto nível, como campeonatos estaduais e nacionais. Com acabamento banhado a ouro de 18 quilates e base de mármore preto, este troféu carrega um símbolo de excelência e vitória.\n\nDetalhes Técnicos:\n- Altura: 45cm\n- Material do corpo: Liga metálica com banho de ouro 18k\n- Base: Mármore preto polido\n- Gravação personalizada incluída\n- Acompanha estojo para transporte",
-    price: 299.99,
-    category: "trofeus",
-    imageUrl: "https://images.unsplash.com/photo-1569513586164-80529357ad6f?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTB8fHRyb3BoeXxlbnwwfHwwfHx8MA%3D%3D",
-    stock: 5,
-    discount: 10,
-    featured: true,
-    createdAt: new Date(),
-    allowCustomization: true,
-    descriptionImages: [
-      "https://images.unsplash.com/photo-1591189824397-cf6550262b4c?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTl8fHRyb3BoeXxlbnwwfHwwfHx8MA%3D%3D"
-    ],
-    specificationImages: [],
-    deliveryImages: []
-  },
-  {
-    id: "3",
-    name: "Porta Medalhas Triplo",
-    description: "Suporte para medalhas com 3 níveis, comportando até 30 medalhas. O Porta Medalhas Triplo é a solução ideal para atletas com múltiplas conquistas. Com seu design de três níveis, ele permite organizar suas medalhas por importância, categoria ou cronologia, mantendo-as protegidas e em destaque.\n\nEspecificações:\n- Estrutura em aço carbono com pintura eletrostática\n- Três níveis independentes\n- Capacidade total: 30 medalhas (10 por nível)\n- Dimensões: 80cm x 30cm\n- Disponível nas cores: preto, prata ou dourado\n- Montagem simplificada",
-    price: 179.99,
-    category: "porta-medalhas",
-    imageUrl: "https://images.unsplash.com/photo-1567427013953-33abb88c8390?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8bWVkYWxzfGVufDB8fDB8fHww",
-    stock: 8,
-    featured: false,
-    createdAt: new Date(),
-    allowCustomization: true
-  },
-  {
-    id: "4",
-    name: "Troféu Regional",
-    description: "Troféu de acrílico para premiações regionais e municipais. Um troféu moderno e elegante, ideal para premiações regionais, municipais ou eventos corporativos. Fabricado em acrílico cristal transparente de 8mm, oferece uma alternativa contemporânea aos troféus tradicionais.\n\nCaracterísticas principais:\n- Altura: 25cm\n- Material: Acrílico cristal transparente\n- Base: Acrílico preto com nome gravado a laser\n- Design moderno e minimalista\n- Leve e resistente a quedas\n- Gravação incluída no preço",
-    price: 129.99,
-    category: "trofeus",
-    imageUrl: "https://images.unsplash.com/photo-1591189824397-cf6550262b4c?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTl8fHRyb3BoeXxlbnwwfHwwfHx8MA%3D%3D",
-    stock: 12,
-    featured: false,
-    createdAt: new Date(),
-    allowCustomization: false
-  }
-];
+// Remove MOCK_PRODUCTS as it will now come from Supabase
+// const MOCK_PRODUCTS: Product[] = [...];
 
 const addToCart = (product: Product, quantity: number = 1, customName?: string, customModality?: string, customColor?: string) => {
   const cartItems = JSON.parse(localStorage.getItem("cart") || "[]");
-  
+
   const existingItemIndex = cartItems.findIndex(
-    (item: { productId: string; customName?: string; customModality?: string; customColor?: string }) => 
-      item.productId === product.id && 
-      item.customName === customName && 
+    (item: { productId: string; customName?: string; customModality?: string; customColor?: string }) =>
+      item.productId === product.id &&
+      item.customName === customName &&
       item.customModality === customModality &&
       item.customColor === customColor
   );
-  
+
   if (existingItemIndex !== -1) {
     cartItems[existingItemIndex].quantity += quantity;
   } else {
@@ -101,7 +38,7 @@ const addToCart = (product: Product, quantity: number = 1, customName?: string, 
       customColor
     });
   }
-  
+
   localStorage.setItem("cart", JSON.stringify(cartItems));
 };
 
@@ -124,24 +61,38 @@ export default function ProductDetailPage() {
   const [customName, setCustomName] = useState("");
   const [customModality, setCustomModality] = useState("");
   const [selectedColor, setSelectedColor] = useState<string>(AVAILABLE_COLORS[0].value);
-  
+
   useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      const foundProduct = MOCK_PRODUCTS.find(p => p.id === productId) || null;
-      setProduct(foundProduct);
-      setLoading(false);
-      
-      // Find related products
-      if (foundProduct) {
-        const related = MOCK_PRODUCTS.filter(
-          p => p.category === foundProduct.category && p.id !== foundProduct.id
-        ).slice(0, 2);
-        setRelatedProducts(related);
+    const fetchProductAndRelated = async () => {
+      setLoading(true);
+      try {
+        const foundProduct = await getProductById(productId || ""); // Fetch product by ID
+        setProduct(foundProduct);
+
+        if (foundProduct) {
+          const related = await getProductsByCategory(foundProduct.category); // Fetch related products
+          // Filter out the current product and take the first 2
+          setRelatedProducts(related.filter(p => p.id !== foundProduct.id).slice(0, 2));
+
+          // Set initial selected color if product has colors and it's the first render
+          if (foundProduct.colors && foundProduct.colors.length > 0) {
+            setSelectedColor(foundProduct.colors[0]);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching product or related products:", error);
+        // Optionally show a toast error
+      } finally {
+        setLoading(false);
       }
-    }, 300);
+    };
+
+    if (productId) { // Ensure productId is available before fetching
+      fetchProductAndRelated();
+    }
   }, [productId]);
-  
+
+
   const handleQuantityChange = (newQuantity: number) => {
     if (newQuantity < 1) return;
     if (product && newQuantity > product.stock) {
@@ -150,14 +101,14 @@ export default function ProductDetailPage() {
     }
     setQuantity(newQuantity);
   };
-  
+
   const handleAddToCart = () => {
     if (product) {
       addToCart(product, quantity, customName, customModality, selectedColor);
       toast.success(`${quantity} ${quantity > 1 ? 'unidades' : 'unidade'} de ${product.name} adicionadas ao carrinho!`);
     }
   };
-  
+
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col bg-background">
@@ -171,7 +122,7 @@ export default function ProductDetailPage() {
       </div>
     );
   }
-  
+
   if (!product) {
     return (
       <div className="min-h-screen flex flex-col bg-background">
@@ -190,44 +141,44 @@ export default function ProductDetailPage() {
       </div>
     );
   }
-  
-  const finalPrice = product.discount 
-    ? product.price - (product.price * product.discount / 100) 
+
+  const finalPrice = product.discount
+    ? product.price - (product.price * product.discount / 100)
     : product.price;
-    
-  const stockStatus = product.stock > 0 
-    ? product.stock <= 5 
-      ? `Apenas ${product.stock} em estoque` 
-      : "Em estoque" 
+
+  const stockStatus = product.stock > 0
+    ? product.stock <= 5
+      ? `Apenas ${product.stock} em estoque`
+      : "Em estoque"
     : "Fora de estoque";
-  
-  const stockColor = product.stock > 5 
-    ? "text-green-600" 
-    : product.stock > 0 
-      ? "text-yellow-600" 
+
+  const stockColor = product.stock > 5
+    ? "text-green-600"
+    : product.stock > 0
+      ? "text-yellow-600"
       : "text-red-600";
-  
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
-      
+
       <main className="flex-1 py-8">
         <div className="container px-4 md:px-6">
           <Link to="/" className="inline-flex items-center text-sm font-medium text-muted-foreground hover:text-foreground mb-4">
             <ArrowLeft className="mr-1 h-4 w-4" />
             Voltar para produtos
           </Link>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
             {/* Product Image */}
             <div className="bg-white rounded-lg overflow-hidden border">
-              <img 
-                src={product.imageUrl || "/placeholder.svg"} 
+              <img
+                src={product.imageUrl || "/placeholder.svg"}
                 alt={product.name}
                 className="w-full h-auto object-cover aspect-square"
               />
             </div>
-            
+
             {/* Product Info */}
             <div className="space-y-6">
               <div>
@@ -239,9 +190,9 @@ export default function ProductDetailPage() {
                     </span>
                   ) : null}
                 </div>
-                
+
                 <h1 className="text-2xl md:text-3xl font-bold">{product.name}</h1>
-                
+
                 <div className="flex items-center gap-2 mt-2">
                   <div className="flex items-center">
                     <span className={`flex items-center gap-1 text-sm font-medium ${stockColor}`}>
@@ -251,7 +202,7 @@ export default function ProductDetailPage() {
                   </div>
                 </div>
               </div>
-              
+
               <div className="space-y-2">
                 <div className="flex items-end gap-2">
                   {product.discount ? (
@@ -269,14 +220,14 @@ export default function ProductDetailPage() {
                     </span>
                   )}
                 </div>
-                
+
                 <p className="text-sm text-muted-foreground">
                   Em até 12x de R$ {(finalPrice / 12).toFixed(2)} sem juros
                 </p>
               </div>
-              
+
               <Separator />
-              
+
               {product.allowCustomization && (
                 <div className="space-y-4">
                   <h3 className="font-medium">Personalização</h3>
@@ -299,28 +250,36 @@ export default function ProductDetailPage() {
                         onChange={(e) => setCustomModality(e.target.value)}
                       />
                     </div>
-                    
+
                     {/* Seletor de cores */}
-                    <div className="space-y-2">
-                      <Label>Cor</Label>
-                      <div className="flex items-center gap-3">
-                        {AVAILABLE_COLORS.map((color) => (
-                          <button
-                            key={color.value}
-                            className={`w-8 h-8 rounded-full border-2 ${selectedColor === color.value ? 'border-black ring-2 ring-offset-2 ring-primary' : 'border-gray-300'}`}
-                            style={{ backgroundColor: color.value, borderColor: color.value === '#000000' ? '#333' : undefined }}
-                            onClick={() => setSelectedColor(color.value)}
-                            title={color.name}
-                            aria-label={`Selecionar cor ${color.name}`}
-                          />
-                        ))}
+                    {product.colors && product.colors.length > 0 && (
+                      <div className="space-y-2">
+                        <Label>Cor</Label>
+                        <div className="flex items-center gap-3">
+                          {product.colors.map((colorValue) => {
+                            // Find the display name for the color if available, otherwise use the hex value
+                            const colorInfo = AVAILABLE_COLORS.find(c => c.value === colorValue);
+                            const colorName = colorInfo ? colorInfo.name : colorValue;
+
+                            return (
+                              <button
+                                key={colorValue}
+                                className={`w-8 h-8 rounded-full border-2 ${selectedColor === colorValue ? 'border-black ring-2 ring-offset-2 ring-primary' : 'border-gray-300'}`}
+                                style={{ backgroundColor: colorValue, borderColor: colorValue === '#000000' ? '#333' : undefined }}
+                                onClick={() => setSelectedColor(colorValue)}
+                                title={colorName}
+                                aria-label={`Selecionar cor ${colorName}`}
+                              />
+                            );
+                          })}
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                   <Separator />
                 </div>
               )}
-              
+
               {product.stock > 0 ? (
                 <div className="space-y-4">
                   <div className="flex items-center gap-2">
@@ -345,19 +304,19 @@ export default function ProductDetailPage() {
                       {product.stock} disponíveis
                     </span>
                   </div>
-                  
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <Button 
-                      className="w-full gap-2" 
+                    <Button
+                      className="w-full gap-2"
                       onClick={handleAddToCart}
                     >
                       <ShoppingCart className="h-4 w-4" />
                       Adicionar ao Carrinho
                     </Button>
-                    
+
                     <Link to="/carrinho" className="w-full">
-                      <Button 
-                        variant="secondary" 
+                      <Button
+                        variant="secondary"
                         className="w-full"
                         onClick={() => {
                           handleAddToCart();
@@ -373,7 +332,7 @@ export default function ProductDetailPage() {
                   Produto Indisponível
                 </Button>
               )}
-              
+
               <div className="bg-muted/50 rounded-lg p-4 text-sm">
                 <p className="font-medium">Formas de entrega:</p>
                 <ul className="mt-2 space-y-1">
@@ -393,7 +352,7 @@ export default function ProductDetailPage() {
               </div>
             </div>
           </div>
-          
+
           {/* Product Details - Now displayed sequentially without tabs */}
           <div className="space-y-12 mb-12">
             {/* Descrição */}
@@ -404,13 +363,13 @@ export default function ProductDetailPage() {
                   {product.description.split('\n\n').map((paragraph, index) => (
                     <p key={index} className="mb-4">{paragraph}</p>
                   ))}
-                  
+
                   {product.descriptionImages && product.descriptionImages.length > 0 && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
                       {product.descriptionImages.map((img, index) => (
-                        <img 
+                        <img
                           key={index}
-                          src={img} 
+                          src={img}
                           alt={`${product.name} - imagem ${index + 1}`}
                           className="rounded-md w-full h-auto object-cover"
                         />
@@ -420,7 +379,7 @@ export default function ProductDetailPage() {
                 </div>
               </div>
             </section>
-            
+
             {/* Especificações */}
             <section>
               <h2 className="text-xl font-bold mb-6 pb-2 border-b">Especificações</h2>
@@ -442,7 +401,7 @@ export default function ProductDetailPage() {
                     </li>
                   </ul>
                 </div>
-                
+
                 <div className="bg-muted/50 p-4 rounded-lg">
                   <h4 className="font-medium mb-2">Detalhes Adicionais</h4>
                   <ul className="space-y-2">
@@ -462,15 +421,15 @@ export default function ProductDetailPage() {
                     </li>
                   </ul>
                 </div>
-                
+
                 {product.specificationImages && product.specificationImages.length > 0 && (
                   <div className="col-span-1 md:col-span-2 mt-4">
                     <h4 className="font-medium mb-2">Imagens detalhadas</h4>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       {product.specificationImages.map((img, index) => (
-                        <img 
+                        <img
                           key={index}
-                          src={img} 
+                          src={img}
                           alt={`${product.name} - especificação ${index + 1}`}
                           className="rounded-md w-full h-auto object-cover"
                         />
@@ -480,7 +439,7 @@ export default function ProductDetailPage() {
                 )}
               </div>
             </section>
-            
+
             {/* Entrega */}
             <section>
               <h2 className="text-xl font-bold mb-6 pb-2 border-b">Entrega</h2>
@@ -502,7 +461,7 @@ export default function ProductDetailPage() {
                     </li>
                   </ul>
                 </div>
-                
+
                 <div className="bg-muted/50 p-4 rounded-lg">
                   <h4 className="font-medium mb-2">Condições de Troca e Devolução</h4>
                   <ul className="space-y-2">
@@ -516,15 +475,15 @@ export default function ProductDetailPage() {
                     </li>
                   </ul>
                 </div>
-                
+
                 {product.deliveryImages && product.deliveryImages.length > 0 && (
                   <div className="mt-4">
                     <h4 className="font-medium mb-2">Imagens de entrega</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {product.deliveryImages.map((img, index) => (
-                        <img 
+                        <img
                           key={index}
-                          src={img} 
+                          src={img}
                           alt={`${product.name} - entrega ${index + 1}`}
                           className="rounded-md w-full h-auto object-cover"
                         />
@@ -535,15 +494,15 @@ export default function ProductDetailPage() {
               </div>
             </section>
           </div>
-          
+
           {/* Related Products */}
           {relatedProducts.length > 0 && (
             <div>
               <h3 className="text-xl font-bold mb-6">Produtos Relacionados</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
                 {relatedProducts.map((relProduct) => (
-                  <Link 
-                    key={relProduct.id} 
+                  <Link
+                    key={relProduct.id}
                     to={`/produto/${relProduct.id}`}
                     className="group"
                   >
@@ -582,7 +541,7 @@ export default function ProductDetailPage() {
           )}
         </div>
       </main>
-      
+
       <footer className="bg-sport-dark text-white py-8">
         <div className="container px-4 md:px-6 text-center">
           <p>&copy; {new Date().getFullYear()} TrophySports. Todos os direitos reservados.</p>
@@ -592,12 +551,13 @@ export default function ProductDetailPage() {
   );
 }
 
-// Function to get category label
+// Function to get category label - Keep as is
 function getCategoryLabel(category: string): string {
   switch (category) {
     case "porta-medalhas":
       return "Porta Medalhas";
     case "trofeus":
+    case "trophies": // Added for consistency
       return "Troféus";
     case "medalhas":
       return "Medalhas";
@@ -610,7 +570,7 @@ function Badge({ category }: { category: string }) {
   let icon;
   let label = "";
   let classes = "";
-  
+
   switch (category) {
     case "porta-medalhas":
       icon = <Medal className="h-3 w-3" />;
@@ -618,6 +578,7 @@ function Badge({ category }: { category: string }) {
       classes = "bg-sport-gold/20 text-sport-gold";
       break;
     case "trofeus":
+    case "trophies": // Added for consistency
       icon = <Trophy className="h-3 w-3" />;
       label = "Troféus";
       classes = "bg-sport-blue/20 text-sport-blue";
@@ -627,7 +588,7 @@ function Badge({ category }: { category: string }) {
       label = getCategoryLabel(category);
       classes = "bg-muted text-muted-foreground";
   }
-  
+
   return (
     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${classes}`}>
       {icon}

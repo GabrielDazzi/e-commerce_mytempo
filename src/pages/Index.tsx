@@ -1,3 +1,4 @@
+// src/pages/Index.tsx
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Product } from "@/types/Product";
@@ -14,81 +15,12 @@ import {
   CarouselContent,
   CarouselItem
 } from "@/components/ui/carousel";
+import { getAllProducts, getFeaturedProducts, searchProducts, getProductsByCategory } from "@/services/productsService"; // Import service functions
 
-// Mock data - in a real app, this would come from an API
-const MOCK_PRODUCTS: Product[] = [
-  {
-    id: "1",
-    name: "Porta Medalhas Premium",
-    description: "Porta medalhas de metal com espaço para 20 medalhas. Ideal para atletas dedicados.",
-    price: 149.99,
-    category: "porta-medalhas",
-    imageUrl: "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8c3BvcnRzJTIwbWVkYWx8ZW58MHx8MHx8fDA%3D",
-    stock: 15,
-    featured: true,
-    createdAt: new Date()
-  },
-  {
-    id: "2",
-    name: "Troféu Campeão Nacional",
-    description: "Troféu banhado a ouro para premiação de campeonatos nacionais.",
-    price: 299.99,
-    category: "trofeus",
-    imageUrl: "https://images.unsplash.com/photo-1569513586164-80529357ad6f?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTB8fHRyb3BoeXxlbnwwfHwwfHx8MA%3D%3D",
-    stock: 5,
-    discount: 10,
-    featured: true,
-    createdAt: new Date()
-  },
-  {
-    id: "3",
-    name: "Porta Medalhas Triplo",
-    description: "Suporte para medalhas com 3 níveis, comportando até 30 medalhas.",
-    price: 179.99,
-    category: "porta-medalhas",
-    imageUrl: "https://images.unsplash.com/photo-1567427013953-33abb88c8390?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8bWVkYWxzfGVufDB8fDB8fHww",
-    stock: 8,
-    featured: false,
-    createdAt: new Date()
-  },
-  {
-    id: "4",
-    name: "Troféu Regional",
-    description: "Troféu de acrílico para premiações regionais e municipais.",
-    price: 129.99,
-    category: "trofeus",
-    imageUrl: "https://images.unsplash.com/photo-1591189824397-cf6550262b4c?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTl8fHRyb3BoeXxlbnwwfHwwfHx8MA%3D%3D",
-    stock: 12,
-    featured: false,
-    createdAt: new Date()
-  },
-  {
-    id: "5",
-    name: "Porta Medalhas Personalizado",
-    description: "Porta medalhas com gravação personalizada do nome do atleta.",
-    price: 199.99,
-    category: "porta-medalhas",
-    imageUrl: "https://images.unsplash.com/photo-1587723958656-ee042cc565a1?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTR8fG1lZGFsc3xlbnwwfHwwfHx8MA%3D%3D",
-    stock: 7,
-    discount: 5,
-    featured: true,
-    createdAt: new Date()
-  },
-  {
-    id: "6",
-    name: "Troféu Personalizado",
-    description: "Troféu metálico premium com gravação personalizada.",
-    price: 349.99,
-    category: "trofeus",
-    imageUrl: "https://images.unsplash.com/photo-1601340494744-8ce9b3b342e5?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8N3x8dHJvcGh5fGVufDB8fDB8fHww",
-    stock: 3,
-    discount: 0,
-    featured: true,
-    createdAt: new Date()
-  }
-];
+// Remove MOCK_PRODUCTS as it will now come from Supabase
+// const MOCK_PRODUCTS: Product[] = [...]
 
-// Cart storage in localStorage
+// Cart storage in localStorage - Keep as is
 const addToCart = (product: Product) => {
   const cartItems = JSON.parse(localStorage.getItem("cart") || "[]");
 
@@ -110,60 +42,101 @@ const addToCart = (product: Product) => {
 };
 
 export default function IndexPage() {
-  const [products, setProducts] = useState<Product[]>(MOCK_PRODUCTS);
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>(MOCK_PRODUCTS);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
+  const [filteredCatalogProducts, setFilteredCatalogProducts] = useState<Product[]>([]);
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [sortOption, setSortOption] = useState("featured");
+  const [loadingProducts, setLoadingProducts] = useState(true);
+  const [loadingFeatured, setLoadingFeatured] = useState(true);
 
   useEffect(() => {
-    let result = [...products];
+    // Fetch all products for the catalog
+    const fetchAllProducts = async () => {
+      setLoadingProducts(true);
+      try {
+        const fetchedProducts = await getAllProducts();
+        setProducts(fetchedProducts);
+        setFilteredCatalogProducts(fetchedProducts); // Initialize filtered products with all products
+      } catch (error) {
+        console.error("Error fetching all products:", error);
+      } finally {
+        setLoadingProducts(false);
+      }
+    };
 
-    // Filter by category
-    if (activeCategory !== "all") {
-      result = result.filter(product => product.category === activeCategory);
-    }
+    // Fetch featured products
+    const fetchFeaturedProducts = async () => {
+      setLoadingFeatured(true);
+      try {
+        const fetchedFeatured = await getFeaturedProducts();
+        setFeaturedProducts(fetchedFeatured);
+      } catch (error) {
+        console.error("Error fetching featured products:", error);
+      } finally {
+        setLoadingFeatured(false);
+      }
+    };
 
-    // Filter by search term
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      result = result.filter(
-        product =>
-          product.name.toLowerCase().includes(term) ||
-          product.description.toLowerCase().includes(term)
-      );
-    }
+    fetchAllProducts();
+    fetchFeaturedProducts();
+  }, []);
 
-    // Sort products
-    switch (sortOption) {
-      case "price-asc":
-        result.sort((a, b) => {
-          const priceA = a.discount ? a.price - (a.price * a.discount / 100) : a.price;
-          const priceB = b.discount ? b.price - (b.price * b.discount / 100) : b.price;
-          return priceA - priceB;
-        });
-        break;
-      case "price-desc":
-        result.sort((a, b) => {
-          const priceA = a.discount ? a.price - (a.price * a.discount / 100) : a.price;
-          const priceB = b.discount ? b.price - (b.price * b.discount / 100) : b.price;
-          return priceB - priceA;
-        });
-        break;
-      case "newest":
-        result.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-        break;
-      case "featured":
-      default:
-        result.sort((a, b) => {
-          if (a.featured === b.featured) return 0;
-          return a.featured ? -1 : 1;
-        });
-        break;
-    }
+  useEffect(() => {
+    const applyFiltersAndSort = async () => {
+      let result: Product[] = [];
 
-    setFilteredProducts(result);
-  }, [products, activeCategory, searchTerm, sortOption]);
+      if (activeCategory === "all") {
+        result = await getAllProducts(); // Re-fetch all products for 'all' tab
+      } else {
+        result = await getProductsByCategory(activeCategory); // Fetch by category
+      }
+
+      if (searchTerm) {
+        // Further filter client-side or add search to backend query if possible
+        const term = searchTerm.toLowerCase();
+        result = result.filter(
+          product =>
+            product.name.toLowerCase().includes(term) ||
+            product.description.toLowerCase().includes(term)
+        );
+      }
+
+      // Sort products
+      switch (sortOption) {
+        case "price-asc":
+          result.sort((a, b) => {
+            const priceA = a.discount ? a.price - (a.price * a.discount / 100) : a.price;
+            const priceB = b.discount ? b.price - (b.price * b.discount / 100) : b.price;
+            return priceA - priceB;
+          });
+          break;
+        case "price-desc":
+          result.sort((a, b) => {
+            const priceA = a.discount ? a.price - (a.price * a.discount / 100) : a.price;
+            const priceB = b.discount ? b.price - (b.price * b.discount / 100) : b.price;
+            return priceB - priceA;
+          });
+          break;
+        case "newest":
+          result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+          break;
+        case "featured":
+        default:
+          result.sort((a, b) => {
+            if (a.featured === b.featured) return 0;
+            return a.featured ? -1 : 1;
+          });
+          break;
+      }
+
+      setFilteredCatalogProducts(result);
+    };
+
+    applyFiltersAndSort();
+  }, [activeCategory, searchTerm, sortOption]); // Depend on filter/sort options
+
 
   const handleAddToCart = (product: Product) => {
     addToCart(product);
@@ -175,12 +148,11 @@ export default function IndexPage() {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    // Search is already handled by the useEffect
+    // Logic for search is already handled by useEffect
   };
 
-  const featuredProducts = products.filter(product => product.featured);
 
-  // Carousel images for the hero background
+  // Carousel images for the hero background - Can also be fetched from DB if you have an 'hero_images' table
   const heroImages = [
     "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8c3BvcnRzJTIwbWVkYWx8ZW58MHx8MHx8fDA%3D",
     "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8c3BvcnRzJTIwbWVkYWx8ZW58MHx8MHx8fDA%3D",
@@ -249,20 +221,38 @@ export default function IndexPage() {
                 <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Produtos em Destaque</h2>
                 <p className="text-muted-foreground">Descubra nossos melhores produtos</p>
               </div>
-              <Button variant="link" className="md:mt-0 mt-2">
-                Ver todos os produtos
-              </Button>
+              <Link to="/produtos"> {/* Link to the AllProducts page */}
+                <Button variant="link" className="md:mt-0 mt-2">
+                  Ver todos os produtos
+                </Button>
+              </Link>
             </div>
 
-            <div className="product-grid">
-              {featuredProducts.slice(0, 3).map((product) => (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  addToCart={handleAddToCart}
-                />
-              ))}
-            </div>
+            {loadingFeatured ? (
+              <div className="product-grid">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="border rounded-md p-4 h-[300px] animate-pulse">
+                    <div className="h-40 bg-muted rounded-md mb-4"></div>
+                    <div className="h-4 bg-muted rounded-md mb-2 w-3/4"></div>
+                    <div className="h-4 bg-muted rounded-md w-1/2"></div>
+                  </div>
+                ))}
+              </div>
+            ) : featuredProducts.length > 0 ? (
+              <div className="product-grid">
+                {featuredProducts.slice(0, 3).map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    addToCart={handleAddToCart}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">Nenhum produto em destaque encontrado.</p>
+              </div>
+            )}
           </div>
         </section>
 
@@ -274,31 +264,35 @@ export default function IndexPage() {
             </h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="bg-white p-6 rounded-lg shadow-sm flex items-center gap-4 hover:shadow-md transition-all">
-                <div className="bg-sport-gold/20 p-4 rounded-full">
-                  <Medal className="h-8 w-8 text-sport-gold" />
+              <Link to="/categorias/porta-medalhas" className="block">
+                <div className="bg-white p-6 rounded-lg shadow-sm flex items-center gap-4 hover:shadow-md transition-all">
+                  <div className="bg-sport-gold/20 p-4 rounded-full">
+                    <Medal className="h-8 w-8 text-sport-gold" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-medium">Porta Medalhas</h3>
+                    <p className="text-muted-foreground">Organize e exiba suas conquistas</p>
+                    <Button variant="link" className="p-0 h-auto mt-1">
+                      Ver produtos
+                    </Button>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-lg font-medium">Porta Medalhas</h3>
-                  <p className="text-muted-foreground">Organize e exiba suas conquistas</p>
-                  <Button variant="link" className="p-0 h-auto mt-1">
-                    Ver produtos
-                  </Button>
-                </div>
-              </div>
+              </Link>
 
-              <div className="bg-white p-6 rounded-lg shadow-sm flex items-center gap-4 hover:shadow-md transition-all">
-                <div className="bg-sport-blue/20 p-4 rounded-full">
-                  <Trophy className="h-8 w-8 text-sport-blue" />
+              <Link to="/categorias/trofeus" className="block">
+                <div className="bg-white p-6 rounded-lg shadow-sm flex items-center gap-4 hover:shadow-md transition-all">
+                  <div className="bg-sport-blue/20 p-4 rounded-full">
+                    <Trophy className="h-8 w-8 text-sport-blue" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-medium">Troféus</h3>
+                    <p className="text-muted-foreground">Símbolos duradouros de suas vitórias</p>
+                    <Button variant="link" className="p-0 h-auto mt-1">
+                      Ver produtos
+                    </Button>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-lg font-medium">Troféus</h3>
-                  <p className="text-muted-foreground">Símbolos duradouros de suas vitórias</p>
-                  <Button variant="link" className="p-0 h-auto mt-1">
-                    Ver produtos
-                  </Button>
-                </div>
-              </div>
+              </Link>
             </div>
           </div>
         </section>
@@ -368,9 +362,19 @@ export default function IndexPage() {
 
               {/* Products Grid */}
               <div className="md:w-3/4">
-                {filteredProducts.length > 0 ? (
+                {loadingProducts ? (
                   <div className="product-grid">
-                    {filteredProducts.map((product) => (
+                    {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                      <div key={i} className="border rounded-md p-4 h-[300px] animate-pulse">
+                        <div className="h-40 bg-muted rounded-md mb-4"></div>
+                        <div className="h-4 bg-muted rounded-md mb-2 w-3/4"></div>
+                        <div className="h-4 bg-muted rounded-md w-1/2"></div>
+                      </div>
+                    ))}
+                  </div>
+                ) : filteredCatalogProducts.length > 0 ? (
+                  <div className="product-grid">
+                    {filteredCatalogProducts.map((product) => (
                       <ProductCard
                         key={product.id}
                         product={product}
@@ -413,9 +417,9 @@ export default function IndexPage() {
             <div>
               <h4 className="font-medium mb-3">Links Rápidos</h4>
               <ul className="space-y-2 text-white/80">
-                <li><a href="#" className="hover:text-sport-gold transition">Início</a></li>
-                <li><a href="/categorias/porta-medalhas" className="hover:text-sport-gold transition">Porta Medalhas</a></li>
-                <li><a href="/categorias/trofeus" className="hover:text-sport-gold transition">Troféus</a></li>
+                <li><Link to="/" className="hover:text-sport-gold transition">Início</Link></li>
+                <li><Link to="/categorias/porta-medalhas" className="hover:text-sport-gold transition">Porta Medalhas</Link></li>
+                <li><Link to="/categorias/trofeus" className="hover:text-sport-gold transition">Troféus</Link></li>
               </ul>
             </div>
             <div>

@@ -1,4 +1,4 @@
-
+// src/pages/CategoryPage.tsx
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { Navbar } from "@/components/Navbar";
@@ -8,61 +8,12 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Search } from "lucide-react";
+import { getProductsByCategory } from "@/services/productsService"; // Import getProductsByCategory
 
-// Mock products data (should be replaced with API call in production)
-const MOCK_PRODUCTS: Product[] = [
-  {
-    id: "1",
-    name: "Porta Medalhas Premium",
-    description: "Porta medalhas de metal com espaço para 20 medalhas. Ideal para atletas dedicados.",
-    price: 149.99,
-    category: "porta-medalhas",
-    imageUrl: "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8c3BvcnRzJTIwbWVkYWx8ZW58MHx8MHx8fDA%3D",
-    stock: 15,
-    featured: true,
-    createdAt: new Date(),
-    allowCustomization: true
-  },
-  {
-    id: "2",
-    name: "Troféu Campeão Nacional",
-    description: "Troféu banhado a ouro para premiação de campeonatos nacionais.",
-    price: 299.99,
-    category: "trofeus",
-    imageUrl: "https://images.unsplash.com/photo-1569513586164-80529357ad6f?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTB8fHRyb3BoeXxlbnwwfHwwfHx8MA%3D%3D",
-    stock: 5,
-    discount: 10,
-    featured: true,
-    createdAt: new Date(),
-    allowCustomization: true
-  },
-  {
-    id: "3",
-    name: "Porta Medalhas Triplo",
-    description: "Suporte para medalhas com 3 níveis, comportando até 30 medalhas.",
-    price: 179.99,
-    category: "porta-medalhas",
-    imageUrl: "https://images.unsplash.com/photo-1567427013953-33abb88c8390?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8bWVkYWxzfGVufDB8fDB8fHww",
-    stock: 8,
-    featured: false,
-    createdAt: new Date(),
-    allowCustomization: true
-  },
-  {
-    id: "4",
-    name: "Troféu Regional",
-    description: "Troféu de acrílico para premiações regionais e municipais.",
-    price: 129.99,
-    category: "trofeus",
-    imageUrl: "https://images.unsplash.com/photo-1591189824397-cf6550262b4c?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTl8fHRyb3BoeXxlbnwwfHwwfHx8MA%3D%3D",
-    stock: 12,
-    featured: false,
-    createdAt: new Date(),
-    allowCustomization: false
-  }
-];
+// Remove MOCK_PRODUCTS as it will now come from Supabase
+// const MOCK_PRODUCTS: Product[] = [...]
 
-// Function to get category label
+// Function to get category label - Keep as is
 const getCategoryLabel = (category: string): string => {
   switch (category) {
     case "porta-medalhas":
@@ -76,14 +27,14 @@ const getCategoryLabel = (category: string): string => {
   }
 };
 
-// Cart storage in localStorage
+// Cart storage in localStorage - Keep as is
 const addToCart = (product: Product) => {
   const cartItems = JSON.parse(localStorage.getItem("cart") || "[]");
-  
+
   const existingItemIndex = cartItems.findIndex(
     (item: { productId: string }) => item.productId === product.id
   );
-  
+
   if (existingItemIndex !== -1) {
     cartItems[existingItemIndex].quantity += 1;
   } else {
@@ -93,35 +44,43 @@ const addToCart = (product: Product) => {
       product
     });
   }
-  
+
   localStorage.setItem("cart", JSON.stringify(cartItems));
 };
 
 export default function CategoryPage() {
   const { categoryId = "" } = useParams<{ categoryId: string }>();
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<Product[]>([]); // Initialize with empty array
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("featured");
   const [loading, setLoading] = useState(true);
   const categoryLabel = getCategoryLabel(categoryId);
-  
+
   useEffect(() => {
-    // Simulate API call with delay
-    setLoading(true);
-    setTimeout(() => {
-      const filtered = MOCK_PRODUCTS.filter(
-        product => product.category === categoryId
-      );
-      setProducts(filtered);
-      setLoading(false);
-    }, 300);
-  }, [categoryId]);
-  
+    const fetchCategoryProducts = async () => {
+      setLoading(true);
+      try {
+        const fetchedProducts = await getProductsByCategory(categoryId); // Fetch products by category from Supabase
+        setProducts(fetchedProducts);
+      } catch (error) {
+        console.error(`Error fetching products for category ${categoryId}:`, error);
+        // Optionally show a toast error
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (categoryId) { // Ensure categoryId is available before fetching
+      fetchCategoryProducts();
+    }
+  }, [categoryId]); // Depend on categoryId to refetch when it changes
+
+
   // Filter products by search query
   const filteredProducts = products.filter(
     product => product.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
-  
+
   // Sort products
   const sortedProducts = [...filteredProducts].sort((a, b) => {
     switch (sortBy) {
@@ -136,18 +95,18 @@ export default function CategoryPage() {
         return (b.featured ? 1 : 0) - (a.featured ? 1 : 0);
     }
   });
-  
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
-      
+
       <main className="flex-1 py-8">
         <div className="container px-4 md:px-6">
           <h1 className="text-3xl font-bold mb-2">{categoryLabel}</h1>
           <p className="text-muted-foreground mb-6">
             Encontre os melhores {categoryLabel.toLowerCase()} para sua coleção de conquistas
           </p>
-          
+
           <div className="flex flex-col sm:flex-row gap-4 mb-6">
             <div className="relative flex-grow">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -158,7 +117,7 @@ export default function CategoryPage() {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            
+
             <Select defaultValue={sortBy} onValueChange={setSortBy}>
               <SelectTrigger className="w-full sm:w-[180px]">
                 <SelectValue placeholder="Ordenar por" />
@@ -171,9 +130,9 @@ export default function CategoryPage() {
               </SelectContent>
             </Select>
           </div>
-          
+
           <Separator className="my-6" />
-          
+
           {loading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
               {[1, 2, 3, 4].map((i) => (
@@ -204,7 +163,7 @@ export default function CategoryPage() {
           )}
         </div>
       </main>
-      
+
       <footer className="bg-sport-dark text-white py-8">
         <div className="container px-4 md:px-6 text-center">
           <p>&copy; {new Date().getFullYear()} TrophySports. Todos os direitos reservados.</p>
