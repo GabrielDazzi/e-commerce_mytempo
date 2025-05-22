@@ -1,39 +1,28 @@
-
 import { supabase, isSupabaseConfigured } from './supabase';
 
-// Create the products table if it doesn't exist
+// Cria a tabela products, se ela ainda não existir
 export const initializeDatabase = async () => {
   if (!isSupabaseConfigured()) {
     console.warn('Skipping database initialization: Supabase is not properly configured.');
     return;
   }
-  
+
   try {
-    // Check if the products table exists
-    const { data: existingTables, error: checkError } = await supabase
-      .from('_realtime')
-      .select('*');
-    
-    if (checkError) {
-      console.warn('Failed to check if table exists, might need to run SQL setup manually:', checkError);
-      return;
-    }
-    
-    // Create products table if it doesn't exist
+    // Executa a stored procedure que cria a tabela products, se necessário
     const { error: createError } = await supabase.rpc('create_products_table');
-    
+
     if (createError) {
       console.warn('Failed to create products table, might need to run SQL setup manually:', createError);
     } else {
       console.log('Database initialized successfully');
     }
-    
+
   } catch (error) {
     console.error('Error initializing database:', error);
   }
 };
 
-// SQL for creating the products table:
+// SQL para criação da tabela products:
 /*
 CREATE TABLE IF NOT EXISTS products (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -53,14 +42,14 @@ CREATE TABLE IF NOT EXISTS products (
   colors TEXT[] DEFAULT '{}'
 );
 
--- Create stored procedure for creating the table
+-- Criação da stored procedure no Supabase
 CREATE OR REPLACE FUNCTION create_products_table()
 RETURNS void AS $$
 BEGIN
-  -- Create extension for UUID generation if it doesn't exist
+  -- Cria a extensão para geração de UUIDs, se necessário
   CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-  
-  -- Create the products table if it doesn't exist
+
+  -- Cria a tabela products, se ainda não existir
   CREATE TABLE IF NOT EXISTS products (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name TEXT NOT NULL,
