@@ -182,10 +182,10 @@ export default function IndexPage() {
 
   // Carousel images for the hero background
   const heroImages = [
-    "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=800&auto=format&fit=crop&q=60",
-    "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=800&auto=format&fit=crop&q=60",
-    "https://images.unsplash.com/photo-1587723958656-ee042cc565a1?w=800&auto=format&fit=crop&q=60",
-    "https://images.unsplash.com/photo-1567427013953-33abb88c8390?w=800&auto=format&fit=crop&q=60"
+    "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8c3BvcnRzJTIwbWVkYWx8ZW58MHx8MHx8fDA%3D",
+    "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8c3BvcnRzJTIwbWVkYWx8ZW58MHx8MHx8fDA%3D",
+    "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8c3BvcnRzJTIwbWVkYWx8ZW58MHx8MHx8fDA%3D",
+    "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8c3BvcnRzJTIwbWVkYWx8ZW58MHx8MHx8fDA%3D"
   ];
 
   return (
@@ -414,9 +414,8 @@ export default function IndexPage() {
               <h4 className="font-medium mb-3">Links Rápidos</h4>
               <ul className="space-y-2 text-white/80">
                 <li><a href="#" className="hover:text-sport-gold transition">Início</a></li>
-                <li><a href="#" className="hover:text-sport-gold transition">Porta Medalhas</a></li>
-                <li><a href="#" className="hover:text-sport-gold transition">Troféus</a></li>
-                <li><a href="#" className="hover:text-sport-gold transition">Sobre nós</a></li>
+                <li><a href="/categorias/porta-medalhas" className="hover:text-sport-gold transition">Porta Medalhas</a></li>
+                <li><a href="/categorias/trofeus" className="hover:text-sport-gold transition">Troféus</a></li>
               </ul>
             </div>
             <div>
