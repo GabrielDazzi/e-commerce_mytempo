@@ -14,6 +14,8 @@ export interface Product {
   specificationImages?: string[];
   deliveryImages?: string[];
   allowCustomization?: boolean;
+  colors?: string[];
+  selectedColor?: string;
 }
 
 export type ProductFormData = Omit<Product, 'id' | 'createdAt'>;
@@ -24,4 +26,16 @@ export type CartItem = {
   product: Product;
   customName?: string;
   customModality?: string;
+  selectedColor?: string;
 };
+
+// Default product colors
+export const DEFAULT_PRODUCT_COLORS = [
+  '#FF0000', // Red
+  '#0000FF', // Blue
+  '#008000', // Green
+  '#FFFF00', // Yellow
+  '#800080', // Purple
+  '#FFA500', // Orange
+];
+

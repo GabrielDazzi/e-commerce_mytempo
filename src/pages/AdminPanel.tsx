@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Navbar } from "@/components/Navbar";
 import { ProductForm } from "@/components/ProductForm";
@@ -36,88 +35,23 @@ import {
   Search, 
   Trophy, 
   Medal,
-  ShieldAlert
+  ShieldAlert,
+  RefreshCw
 } from "lucide-react";
 import { Product, ProductFormData } from "@/types/Product";
 import { toast } from "sonner";
-
-// Mock data - in a real app, this would come from an API
-const MOCK_PRODUCTS: Product[] = [
-  {
-    id: "1",
-    name: "Porta Medalhas Premium",
-    description: "Porta medalhas de metal com espaço para 20 medalhas. Ideal para atletas dedicados.",
-    price: 149.99,
-    category: "porta-medalhas",
-    imageUrl: "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8c3BvcnRzJTIwbWVkYWx8ZW58MHx8MHx8fDA%3D",
-    stock: 15,
-    featured: true,
-    createdAt: new Date(2023, 2, 15)
-  },
-  {
-    id: "2",
-    name: "Troféu Campeão Nacional",
-    description: "Troféu banhado a ouro para premiação de campeonatos nacionais.",
-    price: 299.99,
-    category: "trofeus",
-    imageUrl: "https://images.unsplash.com/photo-1569513586164-80529357ad6f?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTB8fHRyb3BoeXxlbnwwfHwwfHx8MA%3D%3D",
-    stock: 5,
-    discount: 10,
-    featured: true,
-    createdAt: new Date(2023, 4, 20)
-  },
-  {
-    id: "3",
-    name: "Porta Medalhas Triplo",
-    description: "Suporte para medalhas com 3 níveis, comportando até 30 medalhas.",
-    price: 179.99,
-    category: "porta-medalhas",
-    imageUrl: "https://images.unsplash.com/photo-1567427013953-33abb88c8390?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8bWVkYWxzfGVufDB8fDB8fHww",
-    stock: 8,
-    featured: false,
-    createdAt: new Date(2023, 6, 5)
-  },
-  {
-    id: "4",
-    name: "Troféu Regional",
-    description: "Troféu de acrílico para premiações regionais e municipais.",
-    price: 129.99,
-    category: "trofeus",
-    imageUrl: "https://images.unsplash.com/photo-1591189824397-cf6550262b4c?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTl8fHRyb3BoeXxlbnwwfHwwfHx8MA%3D%3D",
-    stock: 12,
-    featured: false,
-    createdAt: new Date(2023, 7, 12)
-  },
-  {
-    id: "5",
-    name: "Porta Medalhas Personalizado",
-    description: "Porta medalhas com gravação personalizada do nome do atleta.",
-    price: 199.99,
-    category: "porta-medalhas",
-    imageUrl: "https://images.unsplash.com/photo-1587723958656-ee042cc565a1?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTR8fG1lZGFsc3xlbnwwfHwwfHx8MA%3D%3D",
-    stock: 7,
-    discount: 5,
-    featured: true,
-    createdAt: new Date(2023, 10, 8)
-  },
-  {
-    id: "6",
-    name: "Troféu Personalizado",
-    description: "Troféu metálico premium com gravação personalizada.",
-    price: 349.99,
-    category: "trofeus",
-    imageUrl: "https://images.unsplash.com/photo-1601340494744-8ce9b3b342e5?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8N3x8dHJvcGh5fGVufDB8fDB8fHww",
-    stock: 3,
-    discount: 0,
-    featured: true,
-    createdAt: new Date(2024, 0, 15)
-  }
-];
+import { 
+  getAllProducts, 
+  createProduct, 
+  updateProduct, 
+  deleteProduct, 
+  searchProducts, 
+  getProductsByCategory 
+} from "@/services/productsService";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 export default function AdminPanel() {
-  const [products, setProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("todos");
   
@@ -126,15 +60,61 @@ export default function AdminPanel() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [currentProduct, setCurrentProduct] = useState<Product | null>(null);
   
-  useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      setProducts(MOCK_PRODUCTS);
-      setFilteredProducts(MOCK_PRODUCTS);
-      setLoading(false);
-    }, 500);
-  }, []);
+  const queryClient = useQueryClient();
   
+  // Fetch products with React Query
+  const { 
+    data: products = [], 
+    isLoading,
+    refetch 
+  } = useQuery({
+    queryKey: ['products'],
+    queryFn: getAllProducts,
+  });
+  
+  // Create product mutation
+  const createProductMutation = useMutation({
+    mutationFn: createProduct,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      toast.success("Produto adicionado com sucesso!");
+      setIsAddDialogOpen(false);
+    },
+    onError: (error) => {
+      toast.error(`Erro ao adicionar produto: ${error.message}`);
+    }
+  });
+  
+  // Update product mutation
+  const updateProductMutation = useMutation({
+    mutationFn: (data: { id: string; product: ProductFormData }) => 
+      updateProduct(data.id, data.product),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      toast.success("Produto atualizado com sucesso!");
+      setIsEditDialogOpen(false);
+      setCurrentProduct(null);
+    },
+    onError: (error) => {
+      toast.error(`Erro ao atualizar produto: ${error.message}`);
+    }
+  });
+  
+  // Delete product mutation
+  const deleteProductMutation = useMutation({
+    mutationFn: deleteProduct,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      toast.success("Produto excluído com sucesso!");
+      setIsDeleteDialogOpen(false);
+      setCurrentProduct(null);
+    },
+    onError: (error) => {
+      toast.error(`Erro ao excluir produto: ${error.message}`);
+    }
+  });
+  
+  // Filter products based on search term and active tab
   useEffect(() => {
     let result = [...products];
     
@@ -155,7 +135,7 @@ export default function AdminPanel() {
     }
     
     // Sort by created date (newest first)
-    result.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     
     setFilteredProducts(result);
   }, [products, activeTab, searchTerm]);
@@ -166,41 +146,22 @@ export default function AdminPanel() {
   };
   
   const handleAddProduct = (data: ProductFormData) => {
-    const newProduct: Product = {
-      ...data,
-      id: `new-${Date.now()}`, // in a real app, this would be generated by the backend
-      createdAt: new Date()
-    };
-    
-    setProducts([newProduct, ...products]);
-    setIsAddDialogOpen(false);
+    createProductMutation.mutate(data);
   };
   
   const handleEditProduct = (data: ProductFormData) => {
     if (!currentProduct) return;
     
-    const updatedProducts = products.map(product => 
-      product.id === currentProduct.id 
-        ? { ...product, ...data } 
-        : product
-    );
-    
-    setProducts(updatedProducts);
-    setIsEditDialogOpen(false);
-    setCurrentProduct(null);
+    updateProductMutation.mutate({
+      id: currentProduct.id,
+      product: data
+    });
   };
   
   const handleDeleteProduct = () => {
     if (!currentProduct) return;
     
-    const updatedProducts = products.filter(product => 
-      product.id !== currentProduct.id
-    );
-    
-    setProducts(updatedProducts);
-    setIsDeleteDialogOpen(false);
-    setCurrentProduct(null);
-    toast.success("Produto excluído com sucesso");
+    deleteProductMutation.mutate(currentProduct.id);
   };
   
   const openEditDialog = (product: Product) => {
@@ -227,10 +188,16 @@ export default function AdminPanel() {
               </p>
             </div>
             
-            <Button onClick={() => setIsAddDialogOpen(true)} className="w-full md:w-auto">
-              <Plus className="h-4 w-4 mr-2" />
-              Adicionar Produto
-            </Button>
+            <div className="flex gap-2">
+              <Button onClick={() => refetch()} variant="outline" className="w-full md:w-auto">
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Atualizar
+              </Button>
+              <Button onClick={() => setIsAddDialogOpen(true)} className="w-full md:w-auto">
+                <Plus className="h-4 w-4 mr-2" />
+                Adicionar Produto
+              </Button>
+            </div>
           </div>
           
           {/* Dashboard Summary */}
@@ -303,7 +270,7 @@ export default function AdminPanel() {
               </TabsList>
             </Tabs>
             
-            {loading ? (
+            {isLoading ? (
               <div className="text-center py-8">
                 <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
                 <p className="mt-4 text-muted-foreground">Carregando produtos...</p>

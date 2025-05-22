@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Product, ProductFormData } from "@/types/Product";
+import { Product, ProductFormData, DEFAULT_PRODUCT_COLORS } from "@/types/Product";
 import { toast } from "sonner";
 
 interface ProductFormProps {
@@ -24,11 +23,17 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
     imageUrl: initialData?.imageUrl || "",
     stock: initialData?.stock || 1,
     featured: initialData?.featured || false,
-    discount: initialData?.discount || 0
+    discount: initialData?.discount || 0,
+    colors: initialData?.colors || DEFAULT_PRODUCT_COLORS,
+    descriptionImages: initialData?.descriptionImages || [],
+    specificationImages: initialData?.specificationImages || [],
+    deliveryImages: initialData?.deliveryImages || [],
+    allowCustomization: initialData?.allowCustomization || false
   });
   
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [customColor, setCustomColor] = useState("#000000");
   
   const categories = [
     { value: "porta-medalhas", label: "Porta Medalhas" },
@@ -58,10 +63,10 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
     }
   };
   
-  const handleSwitchChange = (checked: boolean) => {
+  const handleSwitchChange = (name: string, checked: boolean) => {
     setFormData((prev) => ({
       ...prev,
-      featured: checked
+      [name]: checked
     }));
   };
   
@@ -73,6 +78,32 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
     
     if (errors.category) {
       setErrors((prev) => ({ ...prev, category: "" }));
+    }
+  };
+  
+  const handleColorClick = (color: string) => {
+    // If color is already in the array, remove it
+    if (formData.colors?.includes(color)) {
+      setFormData(prev => ({
+        ...prev,
+        colors: prev.colors?.filter(c => c !== color)
+      }));
+    } else {
+      // Otherwise add it to the array
+      setFormData(prev => ({
+        ...prev,
+        colors: [...(prev.colors || []), color]
+      }));
+    }
+  };
+  
+  const handleAddCustomColor = () => {
+    if (customColor && !formData.colors?.includes(customColor)) {
+      setFormData(prev => ({
+        ...prev,
+        colors: [...(prev.colors || []), customColor]
+      }));
+      setCustomColor("#000000");
     }
   };
   
@@ -240,6 +271,65 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
         </div>
         
         <div className="space-y-2">
+          <Label>Cores disponíveis</Label>
+          <div className="flex flex-wrap gap-2 mb-2">
+            {DEFAULT_PRODUCT_COLORS.map((color) => (
+              <button
+                key={color}
+                type="button"
+                className={`w-8 h-8 rounded-full border-2 ${
+                  formData.colors?.includes(color) 
+                    ? 'border-black' 
+                    : 'border-transparent'
+                }`}
+                style={{ backgroundColor: color }}
+                onClick={() => handleColorClick(color)}
+              />
+            ))}
+          </div>
+          <div className="flex gap-2 items-center">
+            <Input
+              type="color"
+              value={customColor}
+              onChange={(e) => setCustomColor(e.target.value)}
+              className="w-10 h-10 p-1"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleAddCustomColor}
+            >
+              Adicionar cor personalizada
+            </Button>
+          </div>
+          <div className="flex flex-wrap gap-2 mt-2">
+            {formData.colors?.filter(c => !DEFAULT_PRODUCT_COLORS.includes(c)).map((color) => (
+              <div key={color} className="flex items-center gap-1">
+                <div
+                  className={`w-6 h-6 rounded-full border ${
+                    formData.colors?.includes(color) 
+                      ? 'border-black' 
+                      : 'border-transparent'
+                  }`}
+                  style={{ backgroundColor: color }}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6"
+                  onClick={() => handleColorClick(color)}
+                >
+                  <span className="sr-only">Remover</span>
+                  &times;
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+        
+        <div className="space-y-2">
           <Label htmlFor="description">Descrição *</Label>
           <Textarea
             id="description"
@@ -259,9 +349,18 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
           <Switch
             id="featured"
             checked={formData.featured}
-            onCheckedChange={handleSwitchChange}
+            onCheckedChange={(checked) => handleSwitchChange('featured', checked)}
           />
           <Label htmlFor="featured">Produto em destaque</Label>
+        </div>
+        
+        <div className="flex items-center space-x-2">
+          <Switch
+            id="allowCustomization"
+            checked={formData.allowCustomization}
+            onCheckedChange={(checked) => handleSwitchChange('allowCustomization', checked)}
+          />
+          <Label htmlFor="allowCustomization">Permitir personalização</Label>
         </div>
       </div>
       
