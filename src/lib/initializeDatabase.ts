@@ -1,8 +1,13 @@
 
-import { supabase } from './supabase';
+import { supabase, isSupabaseConfigured } from './supabase';
 
 // Create the products table if it doesn't exist
 export const initializeDatabase = async () => {
+  if (!isSupabaseConfigured()) {
+    console.warn('Skipping database initialization: Supabase is not properly configured.');
+    return;
+  }
+  
   try {
     // Check if the products table exists
     const { data: existingTables, error: checkError } = await supabase

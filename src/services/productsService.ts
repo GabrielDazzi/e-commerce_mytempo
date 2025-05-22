@@ -1,5 +1,5 @@
 
-import { supabase } from '@/lib/supabase';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { Product, ProductFormData } from '@/types/Product';
 
 // Table name in Supabase
@@ -33,8 +33,51 @@ const formatProductFromDB = (product: any): Product => {
   };
 };
 
+// Mock data for development when Supabase is not configured
+const mockProducts: Product[] = [
+  {
+    id: '1',
+    name: 'Troféu de Ouro',
+    description: 'Troféu de ouro para premiações esportivas',
+    price: 129.99,
+    category: 'trofeus',
+    imageUrl: '/placeholder.svg',
+    stock: 15,
+    featured: true,
+    discount: 10,
+    createdAt: new Date(),
+    descriptionImages: [],
+    specificationImages: [],
+    deliveryImages: [],
+    allowCustomization: true,
+    colors: ['gold', 'silver']
+  },
+  {
+    id: '2',
+    name: 'Porta Medalhas',
+    description: 'Porta medalhas personalizável',
+    price: 89.99,
+    category: 'porta-medalhas',
+    imageUrl: '/placeholder.svg',
+    stock: 8,
+    featured: false,
+    discount: 0,
+    createdAt: new Date(),
+    descriptionImages: [],
+    specificationImages: [],
+    deliveryImages: [],
+    allowCustomization: true,
+    colors: ['black', 'white']
+  }
+];
+
 // Get all products
 export const getAllProducts = async (): Promise<Product[]> => {
+  if (!isSupabaseConfigured()) {
+    console.log('Using mock data for products');
+    return mockProducts;
+  }
+
   const { data, error } = await supabase
     .from(PRODUCTS_TABLE)
     .select('*')
@@ -50,6 +93,11 @@ export const getAllProducts = async (): Promise<Product[]> => {
 
 // Get product by ID
 export const getProductById = async (id: string): Promise<Product | null> => {
+  if (!isSupabaseConfigured()) {
+    const product = mockProducts.find(p => p.id === id);
+    return product || null;
+  }
+
   const { data, error } = await supabase
     .from(PRODUCTS_TABLE)
     .select('*')
@@ -66,6 +114,16 @@ export const getProductById = async (id: string): Promise<Product | null> => {
 
 // Create a new product
 export const createProduct = async (product: ProductFormData): Promise<Product> => {
+  if (!isSupabaseConfigured()) {
+    const newProduct = {
+      id: `mock-${Date.now()}`,
+      ...product,
+      createdAt: new Date()
+    };
+    mockProducts.push(newProduct);
+    return newProduct;
+  }
+
   const formattedProduct = formatProductForDB({
     ...product,
     createdAt: new Date()
@@ -87,6 +145,19 @@ export const createProduct = async (product: ProductFormData): Promise<Product> 
 
 // Update an existing product
 export const updateProduct = async (id: string, product: ProductFormData): Promise<Product> => {
+  if (!isSupabaseConfigured()) {
+    const index = mockProducts.findIndex(p => p.id === id);
+    if (index >= 0) {
+      const updatedProduct = {
+        ...mockProducts[index],
+        ...product,
+      };
+      mockProducts[index] = updatedProduct;
+      return updatedProduct;
+    }
+    throw new Error('Product not found');
+  }
+
   const formattedProduct = formatProductForDB(product);
   
   const { data, error } = await supabase
@@ -106,6 +177,15 @@ export const updateProduct = async (id: string, product: ProductFormData): Promi
 
 // Delete a product
 export const deleteProduct = async (id: string): Promise<void> => {
+  if (!isSupabaseConfigured()) {
+    const index = mockProducts.findIndex(p => p.id === id);
+    if (index >= 0) {
+      mockProducts.splice(index, 1);
+      return;
+    }
+    return;
+  }
+
   const { error } = await supabase
     .from(PRODUCTS_TABLE)
     .delete()
@@ -119,6 +199,13 @@ export const deleteProduct = async (id: string): Promise<void> => {
 
 // Search products
 export const searchProducts = async (searchTerm: string): Promise<Product[]> => {
+  if (!isSupabaseConfigured()) {
+    return mockProducts.filter(product => 
+      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.description.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }
+
   const { data, error } = await supabase
     .from(PRODUCTS_TABLE)
     .select('*')
@@ -135,6 +222,10 @@ export const searchProducts = async (searchTerm: string): Promise<Product[]> => 
 
 // Get products by category
 export const getProductsByCategory = async (category: string): Promise<Product[]> => {
+  if (!isSupabaseConfigured()) {
+    return mockProducts.filter(product => product.category === category);
+  }
+
   const { data, error } = await supabase
     .from(PRODUCTS_TABLE)
     .select('*')
@@ -151,6 +242,10 @@ export const getProductsByCategory = async (category: string): Promise<Product[]
 
 // Get featured products
 export const getFeaturedProducts = async (): Promise<Product[]> => {
+  if (!isSupabaseConfigured()) {
+    return mockProducts.filter(product => product.featured);
+  }
+
   const { data, error } = await supabase
     .from(PRODUCTS_TABLE)
     .select('*')
