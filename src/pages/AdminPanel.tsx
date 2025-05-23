@@ -1,3 +1,4 @@
+// src/pages/AdminPanel.tsx
 import { useState, useEffect } from "react";
 import { Navbar } from "@/components/Navbar";
 import { ProductForm } from "@/components/ProductForm";
@@ -38,7 +39,7 @@ import {
   ShieldAlert,
   RefreshCw
 } from "lucide-react";
-import { Product, ProductFormData } from "@/types/Product"; // Product agora tem 'createdat'
+import { Product, ProductFormData } from "@/types/Product";
 import { toast } from "sonner";
 import { 
   getAllProducts, 
@@ -47,6 +48,11 @@ import {
   deleteProduct
 } from "@/services/productsService";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+// Adicione o ScrollArea se ainda não estiver importado, embora para este caso específico
+// o overflow no DialogContent pode ser suficiente. Se precisar de mais controle,
+// você pode usá-lo internamente no ProductForm ou envolver o ProductForm com ele.
+// import { ScrollArea } from "@/components/ui/scroll-area";
+
 
 export default function AdminPanel() {
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
@@ -66,25 +72,21 @@ export default function AdminPanel() {
     isError: isFetchError,
     error: fetchError,
     refetch 
-  } = useQuery<Product[], Error>({ // Especificar o tipo do erro para fetchError
+  } = useQuery<Product[], Error>({
     queryKey: ['products'],
     queryFn: getAllProducts,
   });
 
-  // Este useEffect lida com o toast de erro ao buscar produtos.
-  // É importante que ele não cause re-renders excessivos.
   useEffect(() => {
     if (isFetchError && fetchError) {
-      // Verifica para não mostrar o toast repetidamente se o erro persistir
-      // Você pode adicionar uma lógica mais sofisticada se necessário (ex: ID do toast)
       console.error("AdminPanel: Erro ao buscar produtos (useQuery):", fetchError);
       toast.error(`Erro ao buscar produtos: ${fetchError.message}`);
     }
-  }, [isFetchError, fetchError]); // Executa apenas quando isFetchError ou fetchError mudam
+  }, [isFetchError, fetchError]);
   
-  const createProductMutation = useMutation<Product, Error, ProductFormData>({ // Tipos para useMutation
+  const createProductMutation = useMutation<Product, Error, ProductFormData>({
     mutationFn: createProduct,
-    onSuccess: (data) => { // data é o produto retornado
+    onSuccess: (data) => {
       console.log("AdminPanel: createProductMutation onSuccess, Data:", data);
       queryClient.invalidateQueries({ queryKey: ['products'] });
       toast.success("Produto adicionado com sucesso!");
@@ -96,7 +98,7 @@ export default function AdminPanel() {
     }
   });
   
-  const updateProductMutation = useMutation<Product, Error, { id: string; product: ProductFormData }>({ // Tipos
+  const updateProductMutation = useMutation<Product, Error, { id: string; product: ProductFormData }>({
     mutationFn: (data: { id: string; product: ProductFormData }) => 
       updateProduct(data.id, data.product),
     onSuccess: (data) => {
@@ -112,7 +114,7 @@ export default function AdminPanel() {
     }
   });
   
-  const deleteProductMutation = useMutation<void, Error, string>({ // Tipos
+  const deleteProductMutation = useMutation<void, Error, string>({
     mutationFn: deleteProduct,
     onSuccess: () => {
       console.log("AdminPanel: deleteProductMutation onSuccess");
@@ -127,10 +129,8 @@ export default function AdminPanel() {
     }
   });
   
-  // Este useEffect filtra e ordena os produtos.
-  // Ele agora depende de 'products' (que deve ter 'createdat')
   useEffect(() => {
-    console.log("AdminPanel: useEffect de filtro/ordenação disparado. products:", products);
+    // console.log("AdminPanel: useEffect de filtro/ordenação disparado. products:", products);
     if (!products || products.length === 0) {
         setFilteredProducts([]);
         return;
@@ -147,36 +147,33 @@ export default function AdminPanel() {
       result = result.filter(
         product => 
           product.name.toLowerCase().includes(term) || 
-          product.description.toLowerCase().includes(term) ||
+          (product.description && product.description.toLowerCase().includes(term)) || // Adicionado product.description &&
           product.id.toLowerCase().includes(term)
       );
     }
     
-    // MODIFICADO: Ordenar por 'createdat'
-    // Adicionado um check para garantir que createdat é uma data válida antes de ordenar
     result.sort((a, b) => {
-        const dateA = a.createdat instanceof Date ? a.createdat.getTime() : 0;
-        const dateB = b.createdat instanceof Date ? b.createdat.getTime() : 0;
-        return dateB - dateA;
+        const dateA = a.createdAt instanceof Date ? a.createdAt.getTime() : (typeof a.createdAt === 'string' ? new Date(a.createdAt).getTime() : 0);
+        const dateB = b.createdAt instanceof Date ? b.createdAt.getTime() : (typeof b.createdAt === 'string' ? new Date(b.createdAt).getTime() : 0);
+        return (dateB || 0) - (dateA || 0);
     });
     
-    console.log("AdminPanel: setFilteredProducts chamado com:", result);
+    // console.log("AdminPanel: setFilteredProducts chamado com:", result);
     setFilteredProducts(result);
-  }, [products, activeTab, searchTerm]); // Dependências corretas
+  }, [products, activeTab, searchTerm]);
   
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    // A busca já é tratada pelo useEffect ao mudar o searchTerm
   };
   
   const handleAddProduct = (data: ProductFormData) => {
-    console.log("AdminPanel: handleAddProduct chamado com data:", data);
+    // console.log("AdminPanel: handleAddProduct chamado com data:", data);
     createProductMutation.mutate(data);
   };
   
   const handleEditProduct = (data: ProductFormData) => {
     if (!currentProduct) return;
-    console.log("AdminPanel: handleEditProduct chamado para ID:", currentProduct.id, "com data:", data);
+    // console.log("AdminPanel: handleEditProduct chamado para ID:", currentProduct.id, "com data:", data);
     updateProductMutation.mutate({
       id: currentProduct.id,
       product: data
@@ -185,7 +182,7 @@ export default function AdminPanel() {
   
   const handleDeleteProduct = () => {
     if (!currentProduct) return;
-    console.log("AdminPanel: handleDeleteProduct chamado para ID:", currentProduct.id);
+    // console.log("AdminPanel: handleDeleteProduct chamado para ID:", currentProduct.id);
     deleteProductMutation.mutate(currentProduct.id);
   };
   
@@ -205,6 +202,7 @@ export default function AdminPanel() {
       
       <main className="flex-1 py-8">
         <div className="container px-4 md:px-6">
+          {/* ... (cabeçalho e cards de estatísticas) ... */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
             <div>
               <h1 className="text-2xl md:text-3xl font-bold">Painel Administrativo</h1>
@@ -221,12 +219,12 @@ export default function AdminPanel() {
                 }}
                 variant="outline"
                 className="w-full md:w-auto"
-                disabled={isLoading}
+                disabled={isLoading || createProductMutation.isPending || updateProductMutation.isPending || deleteProductMutation.isPending}
               >
-                <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`h-4 w-4 mr-2 ${(isLoading || createProductMutation.isPending || updateProductMutation.isPending) ? 'animate-spin' : ''}`} />
                 {isLoading ? "Atualizando..." : "Atualizar"}
               </Button>
-              <Button onClick={() => setIsAddDialogOpen(true)} className="w-full md:w-auto">
+              <Button onClick={() => setIsAddDialogOpen(true)} className="w-full md:w-auto" disabled={createProductMutation.isPending || updateProductMutation.isPending}>
                 <Plus className="h-4 w-4 mr-2" />
                 Adicionar Produto
               </Button>
@@ -268,8 +266,9 @@ export default function AdminPanel() {
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white rounded-lg border p-6">
+            {/* ... (filtros e tabs) ... */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
               <h2 className="text-xl font-semibold">Gerenciamento de Produtos</h2>
               
@@ -301,7 +300,7 @@ export default function AdminPanel() {
               </TabsList>
             </Tabs>
             
-            {isLoading && !isFetchError ? ( // Mostrar loading apenas se não houver erro de fetch inicial
+            {isLoading && !isFetchError ? (
               <div className="text-center py-8">
                 <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
                 <p className="mt-4 text-muted-foreground">Carregando produtos...</p>
@@ -419,7 +418,8 @@ export default function AdminPanel() {
       </main>
       
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent className="sm:max-w-[800px]">
+        {/* MODIFICAÇÃO AQUI: Adiciona classes para altura máxima e overflow */}
+        <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Adicionar Produto</DialogTitle>
             <DialogDescription>
@@ -435,7 +435,8 @@ export default function AdminPanel() {
       </Dialog>
       
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[800px]">
+        {/* MODIFICAÇÃO AQUI: Adiciona classes para altura máxima e overflow */}
+        <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Editar Produto</DialogTitle>
             <DialogDescription>
@@ -492,7 +493,7 @@ export default function AdminPanel() {
 function CategoryBadge({ category }: { category: string }) {
   let icon;
   let label = "";
-  let variant: "default" | "secondary" | "outline" = "outline";
+  let variant: "default" | "secondary" | "outline" | "destructive" = "outline"; // Adicionado destructive ao tipo
   
   switch (category) {
     case "porta-medalhas":
@@ -503,15 +504,20 @@ function CategoryBadge({ category }: { category: string }) {
     case "trofeus":
       icon = <Trophy className="h-3 w-3 mr-1" />;
       label = "Troféus";
-      variant = "default";
+      variant = "default"; // Mantido como default, você pode ajustar se necessário
+      break;
+    case "medalhas": // Adicionado caso para medalhas se for uma categoria distinta
+      icon = <Medal className="h-3 w-3 mr-1" />; // Ou outro ícone se preferir
+      label = "Medalhas";
+      variant = "secondary"; // Exemplo, ajuste conforme necessário
       break;
     default:
-      label = category;
+      label = category.charAt(0).toUpperCase() + category.slice(1); // Capitaliza a primeira letra
       variant = "outline";
   }
   
   return (
-    <Badge variant={variant} className="flex items-center gap-1 w-fit">
+    <Badge variant={variant} className="flex items-center gap-1 w-fit whitespace-nowrap"> {/* Adicionado whitespace-nowrap */}
       {icon}
       {label}
     </Badge>
