@@ -4,21 +4,21 @@ export interface Product {
   description: string;
   price: number;
   category: string;
-  imageurl?: string; // minúsculo
+  imageUrl: string; // camelCase
   stock: number;
   featured?: boolean;
   discount?: number;
-  createdat: Date; // minúsculo
-  descriptionimages?: string[]; // minúsculo
-  specificationimages?: string[]; // minúsculo
-  deliveryimages?: string[]; // minúsculo
-  allowcustomization?: boolean; // minúsculo
-  colors?: string[]; // minúsculo
-  selectedColor?: string;
+  createdAt: Date; // camelCase
+  descriptionImages?: string[]; // camelCase
+  specificationImages?: string[]; // camelCase
+  deliveryImages?: string[]; // camelCase
+  allowCustomization?: boolean; // camelCase
+  colors?: string[]; // camelCase
+  selectedColor?: string; // UI only
 }
 
 export type ProductFormData = Omit<Product, 'id'> & {
-  createdat?: Date;
+  createdAt?: Date; // camelCase
 };
 
 export type CartItem = {
