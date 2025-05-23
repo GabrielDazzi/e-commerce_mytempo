@@ -1,5 +1,5 @@
 // src/pages/ProductDetail.tsx
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Navbar } from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
@@ -8,53 +8,57 @@ import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ShoppingCart, ArrowLeft, Medal, Trophy, Check } from "lucide-react";
-import { Product, DEFAULT_PRODUCT_COLORS, CartItem as CartItemType, SpecificationItem } from "@/types/Product";
+import { Product, DEFAULT_PRODUCT_COLORS, CartItem as CartItemType } from "@/types/Product"; // Importado CartItemType
 import { toast } from "sonner";
 import { getProductById, getProductsByCategory } from "@/services/productsService";
 
-// Função addToCart (conforme corrigida anteriormente)
-const addToCart = (product: Product, quantity: number = 1, customName?: string, customModality?: string, selectedColor?: string) => {
+// Função addToCart com logs
+const addToCart = (product: Product, quantity: number = 1, customName?: string, customModality?: string, customColor?: string) => {
+  console.log('[ProductDetail] addToCart called with:', { product, quantity, customName, customModality, customColor });
   let cartItems: CartItemType[] = [];
   try {
-    const storedCart = localStorage.getItem("cart");
-    if (storedCart) {
-      cartItems = JSON.parse(storedCart);
-    }
+    cartItems = JSON.parse(localStorage.getItem("cart") || "[]");
   } catch (e) {
     console.error("Error parsing cart from localStorage", e);
-    localStorage.removeItem("cart");
+    localStorage.removeItem("cart"); // Clear corrupted cart
   }
+  console.log('[ProductDetail] Current cartItems from localStorage:', cartItems);
 
   const existingItemIndex = cartItems.findIndex(
-    (item: CartItemType) =>
+    (item: CartItemType) => // Usar CartItemType aqui
       item.productId === product.id &&
       item.customName === customName &&
       item.customModality === customModality &&
-      item.selectedColor === selectedColor
+      item.selectedColor === customColor // Corrigido para item.selectedColor
   );
+  console.log('[ProductDetail] existingItemIndex:', existingItemIndex);
 
   if (existingItemIndex !== -1) {
     cartItems[existingItemIndex].quantity += quantity;
+    console.log('[ProductDetail] Updated quantity for existing item');
   } else {
-    const newItem: CartItemType = {
+    const newItem: CartItemType = { // Tipar newItem
       productId: product.id,
       quantity,
       product,
       customName,
       customModality,
-      selectedColor
+      selectedColor: customColor // Corrigido para selectedColor
     };
     cartItems.push(newItem);
+    console.log('[ProductDetail] Added new item:', newItem);
   }
 
   try {
     localStorage.setItem("cart", JSON.stringify(cartItems));
-    window.dispatchEvent(new Event('storage'));
+    console.log('[ProductDetail] Cart saved to localStorage:', cartItems);
+    window.dispatchEvent(new Event('storage')); // Dispara evento para atualizar outros componentes ouvindo o storage
   } catch (error) {
     console.error('[ProductDetail] Error saving to localStorage:', error);
     toast.error("Erro ao salvar o carrinho no localStorage.");
   }
 };
+
 
 const AVAILABLE_COLORS_MAP: { [key: string]: string } = {
   "#FFD700": "Dourado",
@@ -86,19 +90,17 @@ export default function ProductDetailPage() {
       setLoading(true);
       setSelectedColor("");
       try {
-        const foundProduct = await getProductById(productId || ""); //
+        const foundProduct = await getProductById(productId || "");
         setProduct(foundProduct);
 
         if (foundProduct) {
-          const related = await getProductsByCategory(foundProduct.category); //
+          const related = await getProductsByCategory(foundProduct.category);
           setRelatedProducts(related.filter(p => p.id !== foundProduct.id).slice(0, 2));
 
-          const colorsToUse = (foundProduct.colors && foundProduct.colors.length > 0)
-            ? foundProduct.colors
-            : DEFAULT_PRODUCT_COLORS;
-
-          if (colorsToUse.length > 0) {
-            setSelectedColor(colorsToUse[0]);
+          if (foundProduct.colors && foundProduct.colors.length > 0) {
+            setSelectedColor(foundProduct.colors[0]);
+          } else if (DEFAULT_PRODUCT_COLORS.length > 0) {
+            setSelectedColor(DEFAULT_PRODUCT_COLORS[0]);
           }
         }
       } catch (error) {
@@ -123,9 +125,18 @@ export default function ProductDetailPage() {
     setQuantity(newQuantity);
   };
 
-  const handleAddToCart = () => { //
+  const handleAddToCart = () => {
     if (product) {
-      const colorToSave = (product.allowCustomization && displayProductColors.length > 0)
+      console.log('[ProductDetail] handleAddToCart states:', {
+        product,
+        quantity,
+        customName,
+        customModality,
+        selectedColor,
+        allowCustomization: product.allowCustomization,
+        productColors: product.colors
+      });
+      const colorToSave = (product.allowCustomization && ((product.colors && product.colors.length > 0) || DEFAULT_PRODUCT_COLORS.length > 0))
         ? selectedColor
         : undefined;
 
@@ -136,7 +147,7 @@ export default function ProductDetailPage() {
         product.allowCustomization ? customModality : undefined,
         colorToSave
       );
-      toast.success(`${quantity} ${product.name} adicionado(s) ao carrinho!`);
+      toast.success(`${quantity} ${quantity > 1 ? 'unidades' : 'unidade'} de ${product.name} adicionada(s) ao carrinho!`);
     }
   };
 
@@ -191,7 +202,7 @@ export default function ProductDetailPage() {
 
   const displayProductColors = (product.colors && product.colors.length > 0)
     ? product.colors
-    : DEFAULT_PRODUCT_COLORS; //
+    : DEFAULT_PRODUCT_COLORS;
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -202,7 +213,6 @@ export default function ProductDetailPage() {
             <ArrowLeft className="mr-1 h-4 w-4" />
             Voltar para produtos
           </Link>
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
             <div className="bg-white rounded-lg overflow-hidden border">
               <img
@@ -211,7 +221,6 @@ export default function ProductDetailPage() {
                 className="w-full h-auto object-cover aspect-square"
               />
             </div>
-
             <div className="space-y-6">
               <div>
                 <div className="flex items-center gap-2 mb-1">
@@ -232,7 +241,6 @@ export default function ProductDetailPage() {
                   </div>
                 </div>
               </div>
-
               <div className="space-y-2">
                 <div className="flex items-end gap-2">
                   {product.discount ? (
@@ -254,6 +262,7 @@ export default function ProductDetailPage() {
                   Em até 12x de R$ {(finalPrice / 12).toFixed(2)} sem juros
                 </p>
               </div>
+
               <Separator />
 
               {product.allowCustomization && (
@@ -278,7 +287,6 @@ export default function ProductDetailPage() {
                         onChange={(e) => setCustomModality(e.target.value)}
                       />
                     </div>
-
                     {displayProductColors.length > 0 && (
                       <div className="space-y-2">
                         <Label>Cor</Label>
@@ -307,28 +315,67 @@ export default function ProductDetailPage() {
               {product.stock > 0 ? (
                 <div className="space-y-4">
                   <div className="flex items-center gap-2">
-                    <Button variant="outline" size="icon" onClick={() => handleQuantityChange(quantity - 1)} disabled={quantity <= 1}>-</Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => handleQuantityChange(quantity - 1)}
+                      disabled={quantity <= 1}
+                    >
+                      -
+                    </Button>
                     <span className="w-8 text-center">{quantity}</span>
-                    <Button variant="outline" size="icon" onClick={() => handleQuantityChange(quantity + 1)} disabled={quantity >= product.stock}>+</Button>
-                    <span className="text-sm text-muted-foreground ml-2">{product.stock} disponíveis</span>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => handleQuantityChange(quantity + 1)}
+                      disabled={quantity >= product.stock}
+                    >
+                      +
+                    </Button>
+                    <span className="text-sm text-muted-foreground ml-2">
+                      {product.stock} disponíveis
+                    </span>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <Button className="w-full gap-2" onClick={handleAddToCart}><ShoppingCart className="h-4 w-4" />Adicionar ao Carrinho</Button>
+                    <Button
+                      className="w-full gap-2"
+                      onClick={handleAddToCart}
+                    >
+                      <ShoppingCart className="h-4 w-4" />
+                      Adicionar ao Carrinho
+                    </Button>
                     <Link to="/carrinho" className="w-full">
-                      <Button variant="secondary" className="w-full" onClick={handleAddToCart}>Comprar Agora</Button>
+                      <Button
+                        variant="secondary"
+                        className="w-full"
+                        onClick={handleAddToCart}
+                      >
+                        Comprar Agora
+                      </Button>
                     </Link>
                   </div>
                 </div>
               ) : (
-                <Button disabled className="w-full">Produto Indisponível</Button>
+                <Button disabled className="w-full">
+                  Produto Indisponível
+                </Button>
               )}
 
               <div className="bg-muted/50 rounded-lg p-4 text-sm">
                 <p className="font-medium">Formas de entrega:</p>
                 <ul className="mt-2 space-y-1">
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-600" /><span>Envio para todo Brasil</span></li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-600" /><span>Frete grátis para compras acima de R$300</span></li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-600" /><span>Garantia de 30 dias</span></li>
+                  <li className="flex items-center gap-2">
+                    <Check className="h-4 w-4 text-green-600" />
+                    <span>Envio para todo Brasil</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="h-4 w-4 text-green-600" />
+                    <span>Frete grátis para compras acima de R$300</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="h-4 w-4 text-green-600" />
+                    <span>Garantia de 30 dias</span>
+                  </li>
                 </ul>
               </div>
             </div>
@@ -338,101 +385,125 @@ export default function ProductDetailPage() {
             <section>
               <h2 className="text-xl font-bold mb-6 pb-2 border-b">Descrição</h2>
               <div className="text-muted-foreground">
-                <div className="prose max-w-none dark:prose-invert"> {/* Adicionado dark:prose-invert para melhor leitura em modo escuro */}
+                <div className="prose max-w-none dark:prose-invert">
                   {product.description.split('\n\n').map((paragraph, index) => (
                     <p key={index} className="mb-4">{paragraph}</p>
                   ))}
                   {product.descriptionImages && product.descriptionImages.length > 0 && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
                       {product.descriptionImages.map((img, index) => (
-                        <img key={index} src={img} alt={`${product.name} - imagem descritiva ${index + 1}`} className="rounded-md w-full h-auto object-cover"/>
+                        <img
+                          key={index}
+                          src={img}
+                          alt={`${product.name} - imagem ${index + 1}`}
+                          className="rounded-md w-full h-auto object-cover"
+                        />
                       ))}
                     </div>
                   )}
                 </div>
               </div>
             </section>
-
             <section>
               <h2 className="text-xl font-bold mb-6 pb-2 border-b">Especificações</h2>
-              <div className="space-y-4">
-                {(product.specifications && product.specifications.length > 0) && (
-                  <div className="bg-muted/50 p-4 rounded-lg">
-                    <h4 className="font-medium mb-3 text-base">Detalhes Técnicos</h4>
-                    <ul className="space-y-2 text-sm">
-                      {product.specifications.map((spec, index) => (
-                        <li key={index} className="flex justify-between gap-2">
-                          <span className="text-muted-foreground whitespace-nowrap">{spec.name}:</span>
-                          <span className="font-medium text-right">{spec.value}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="bg-muted/50 p-4 rounded-lg">
-                    <h4 className="font-medium mb-3 text-base">Outras Informações</h4>
-                    <ul className="space-y-2 text-sm">
-                        <li className="flex justify-between">
-                            <span className="text-muted-foreground">Categoria:</span>
-                            <span className="font-medium">{getCategoryLabel(product.category)}</span>
-                        </li>
-                        <li className="flex justify-between">
-                            <span className="text-muted-foreground">Estoque Atual:</span>
-                            <span className="font-medium">{product.stock} unidades</span>
-                        </li>
-                        <li className="flex justify-between">
-                            <span className="text-muted-foreground">Código:</span>
-                            <span className="font-medium">PROD-{product.id.substring(0, 8).toUpperCase()}</span>
-                        </li>
-                         <li className="flex justify-between">
-                            <span className="text-muted-foreground">Garantia:</span>
-                            <span className="font-medium">30 dias</span>
-                        </li>
-                        <li className="flex justify-between">
-                            <span className="text-muted-foreground">Origem:</span>
-                            <span className="font-medium">Brasil</span>
-                        </li>
-                    </ul>
+                  <h4 className="font-medium mb-2">Informações do Produto</h4>
+                  <ul className="space-y-2">
+                    <li className="flex justify-between">
+                      <span className="text-muted-foreground">Categoria</span>
+                      <span className="font-medium">{getCategoryLabel(product.category)}</span>
+                    </li>
+                    <li className="flex justify-between">
+                      <span className="text-muted-foreground">Estoque</span>
+                      <span className="font-medium">{product.stock} unidades</span>
+                    </li>
+                    <li className="flex justify-between">
+                      <span className="text-muted-foreground">Código</span>
+                      <span className="font-medium">PROD-{product.id.substring(0, 8).toUpperCase()}</span>
+                    </li>
+                  </ul>
                 </div>
-
+                <div className="bg-muted/50 p-4 rounded-lg">
+                  <h4 className="font-medium mb-2">Detalhes Adicionais</h4>
+                  <ul className="space-y-2">
+                    <li className="flex justify-between">
+                      <span className="text-muted-foreground">Material</span>
+                      <span className="font-medium">
+                        {product.category === "porta-medalhas" ? "Aço Carbono / MDF" : "Metal / Acrílico"}
+                      </span>
+                    </li>
+                    <li className="flex justify-between">
+                      <span className="text-muted-foreground">Garantia</span>
+                      <span className="font-medium">30 dias</span>
+                    </li>
+                    <li className="flex justify-between">
+                      <span className="text-muted-foreground">Origem</span>
+                      <span className="font-medium">Brasil</span>
+                    </li>
+                  </ul>
+                </div>
                 {product.specificationImages && product.specificationImages.length > 0 && (
-                  <div className="mt-6">
-                    <h4 className="font-medium mb-3 text-base">Imagens Detalhadas</h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                  <div className="col-span-1 md:col-span-2 mt-4">
+                    <h4 className="font-medium mb-2">Imagens detalhadas</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       {product.specificationImages.map((img, index) => (
-                        <img key={index} src={img} alt={`${product.name} - especificação ${index + 1}`} className="rounded-md w-full h-auto object-cover border"/>
+                        <img
+                          key={index}
+                          src={img}
+                          alt={`${product.name} - especificação ${index + 1}`}
+                          className="rounded-md w-full h-auto object-cover"
+                        />
                       ))}
                     </div>
                   </div>
                 )}
               </div>
             </section>
-
             <section>
               <h2 className="text-xl font-bold mb-6 pb-2 border-b">Entrega</h2>
               <div className="space-y-4">
                 <div className="bg-muted/50 p-4 rounded-lg">
-                  <h4 className="font-medium mb-2 text-base">Informações de Entrega</h4>
-                  <ul className="space-y-2 text-sm">
-                    <li className="flex items-start gap-2"><Check className="h-4 w-4 text-green-600 mt-1 flex-shrink-0" /><span>Envio para todo o Brasil através dos Correios ou transportadoras parceiras.</span></li>
-                    <li className="flex items-start gap-2"><Check className="h-4 w-4 text-green-600 mt-1 flex-shrink-0" /><span>Prazo de envio: 1-3 dias úteis após a confirmação do pagamento.</span></li>
-                    <li className="flex items-start gap-2"><Check className="h-4 w-4 text-green-600 mt-1 flex-shrink-0" /><span>Frete grátis para compras acima de R$300,00 (consulte regiões).</span></li>
+                  <h4 className="font-medium mb-2">Informações de Entrega</h4>
+                  <ul className="space-y-2">
+                    <li className="flex items-start gap-2">
+                      <Check className="h-4 w-4 text-green-600 mt-1 flex-shrink-0" />
+                      <span>Envio para todo o Brasil através dos Correios ou transportadoras parceiras.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Check className="h-4 w-4 text-green-600 mt-1 flex-shrink-0" />
+                      <span>Prazo de envio: 1-3 dias úteis após a confirmação do pagamento.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Check className="h-4 w-4 text-green-600 mt-1 flex-shrink-0" />
+                      <span>Frete grátis para compras acima de R$300,00 (consulte regiões).</span>
+                    </li>
                   </ul>
                 </div>
                 <div className="bg-muted/50 p-4 rounded-lg">
-                  <h4 className="font-medium mb-2 text-base">Condições de Troca e Devolução</h4>
-                  <ul className="space-y-2 text-sm">
-                    <li className="flex items-start gap-2"><Check className="h-4 w-4 text-green-600 mt-1 flex-shrink-0" /><span>Você tem até 7 dias após o recebimento para solicitar a troca ou devolução do produto.</span></li>
-                    <li className="flex items-start gap-2"><Check className="h-4 w-4 text-green-600 mt-1 flex-shrink-0" /><span>O produto deve estar em perfeitas condições, na embalagem original e com todos os acessórios.</span></li>
+                  <h4 className="font-medium mb-2">Condições de Troca e Devolução</h4>
+                  <ul className="space-y-2">
+                    <li className="flex items-start gap-2">
+                      <Check className="h-4 w-4 text-green-600 mt-1 flex-shrink-0" />
+                      <span>Você tem até 7 dias após o recebimento para solicitar a troca ou devolução do produto.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Check className="h-4 w-4 text-green-600 mt-1 flex-shrink-0" />
+                      <span>O produto deve estar em perfeitas condições, na embalagem original e com todos os acessórios.</span>
+                    </li>
                   </ul>
                 </div>
                 {product.deliveryImages && product.deliveryImages.length > 0 && (
-                  <div className="mt-6">
-                    <h4 className="font-medium mb-3 text-base">Imagens de Embalagem/Envio</h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                  <div className="mt-4">
+                    <h4 className="font-medium mb-2">Imagens de entrega</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {product.deliveryImages.map((img, index) => (
-                        <img key={index} src={img} alt={`${product.name} - entrega ${index + 1}`} className="rounded-md w-full h-auto object-cover border"/>
+                        <img
+                          key={index}
+                          src={img}
+                          alt={`${product.name} - entrega ${index + 1}`}
+                          className="rounded-md w-full h-auto object-cover"
+                        />
                       ))}
                     </div>
                   </div>
@@ -446,21 +517,35 @@ export default function ProductDetailPage() {
               <h3 className="text-xl font-bold mb-6">Produtos Relacionados</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
                 {relatedProducts.map((relProduct) => (
-                  <Link key={relProduct.id} to={`/produto/${relProduct.id}`} className="group">
+                  <Link
+                    key={relProduct.id}
+                    to={`/produto/${relProduct.id}`}
+                    className="group"
+                  >
                     <Card className="overflow-hidden hover-scale h-full flex flex-col">
                       <div className="h-44 bg-muted flex-shrink-0">
-                        <img src={relProduct.imageUrl || "/placeholder.svg"} alt={relProduct.name} className="h-full w-full object-cover transition-all group-hover:scale-105"/>
+                        <img
+                          src={relProduct.imageUrl || "/placeholder.svg"}
+                          alt={relProduct.name}
+                          className="h-full w-full object-cover transition-all group-hover:scale-105"
+                        />
                       </div>
                       <div className="p-4 flex flex-col flex-grow">
                         <h4 className="font-medium line-clamp-2 flex-grow">{relProduct.name}</h4>
                         <div className="mt-2">
                           {relProduct.discount ? (
                             <div className="flex flex-col">
-                              <span className="text-muted-foreground line-through text-sm">R$ {relProduct.price.toFixed(2)}</span>
-                              <span className="text-lg font-bold text-primary">R$ {(relProduct.price - (relProduct.price * (relProduct.discount || 0) / 100)).toFixed(2)}</span>
+                              <span className="text-muted-foreground line-through text-sm">
+                                R$ {relProduct.price.toFixed(2)}
+                              </span>
+                              <span className="text-lg font-bold text-primary">
+                                R$ {(relProduct.price - (relProduct.price * (relProduct.discount || 0) / 100)).toFixed(2)}
+                              </span>
                             </div>
                           ) : (
-                            <span className="text-lg font-bold text-primary">R$ {relProduct.price.toFixed(2)}</span>
+                            <span className="text-lg font-bold text-primary">
+                              R$ {relProduct.price.toFixed(2)}
+                            </span>
                           )}
                         </div>
                       </div>
@@ -483,10 +568,15 @@ export default function ProductDetailPage() {
 
 function getCategoryLabel(category: string): string {
   switch (category) {
-    case "porta-medalhas": return "Porta Medalhas";
-    case "trofeus": case "trophies": return "Troféus";
-    case "medalhas": return "Medalhas";
-    default: return category.charAt(0).toUpperCase() + category.slice(1);
+    case "porta-medalhas":
+      return "Porta Medalhas";
+    case "trofeus":
+    case "trophies":
+      return "Troféus";
+    case "medalhas":
+      return "Medalhas";
+    default:
+      return category.charAt(0).toUpperCase() + category.slice(1);
   }
 }
 
@@ -494,25 +584,29 @@ function CategoryBadge({ category }: { category: string }) {
   let icon;
   let label = "";
   let classes = "";
+
   switch (category) {
     case "porta-medalhas":
       icon = <Medal className="h-3 w-3" />;
       label = "Porta Medalhas";
-      classes = "bg-sport-gold/20 text-sport-gold"; //
+      classes = "bg-sport-gold/20 text-sport-gold";
       break;
-    case "trofeus": case "trophies":
+    case "trofeus":
+    case "trophies":
       icon = <Trophy className="h-3 w-3" />;
       label = "Troféus";
-      classes = "bg-sport-blue/20 text-sport-blue"; //
+      classes = "bg-blue-500/20 text-blue-600"; // Exemplo, ajuste se tiver sport-blue definido
       break;
     default:
       icon = <Medal className="h-3 w-3" />;
       label = getCategoryLabel(category);
       classes = "bg-muted text-muted-foreground";
   }
+
   return (
     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${classes}`}>
-      {icon} {label}
+      {icon}
+      {label}
     </span>
   );
 }
