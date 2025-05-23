@@ -1,29 +1,33 @@
 // src/types/Product.ts
+
+export interface SpecificationItem { // Novo tipo para cada item de especificação
+  name: string;
+  value: string;
+}
+
 export interface Product {
   id: string;
   name: string;
   description: string;
   price: number;
   category: string;
-  imageUrl?: string; // Alterado de imageurl
+  imageUrl?: string;
   stock: number;
   featured?: boolean;
   discount?: number;
-  createdAt: Date; // Alterado de createdat
-  descriptionImages?: string[]; // Alterado de descriptionimages
-  specificationImages?: string[]; // Alterado de specificationimages
-  deliveryImages?: string[]; // Alterado de deliveryimages
-  allowCustomization?: boolean; // Alterado de allowcustomization
+  createdAt: Date;
+  descriptionImages?: string[];      // Já existente e correto
+  specificationImages?: string[];    // Já existente e correto
+  deliveryImages?: string[];         // Já existente
+  allowCustomization?: boolean;
   colors?: string[];
   selectedColor?: string;
+  specifications?: SpecificationItem[];
 }
 
-// ProductFormData pode permanecer como está ou ser ajustado se necessário,
-// mas Omit<Product, 'id'> já refletirá as mudanças acima.
 export type ProductFormData = Omit<Product, 'id'> & {
-  // createdAt pode ser opcional aqui e no formulário,
-  // se for gerado no backend ou no momento da criação.
-  // Se ele é obrigatório no formulário, remova a opcionalidade.
+  createdAt?: Date;
+  // descriptionImages, specificationImages, deliveryImages já estão incluídos por Omit<Product, 'id'>
 };
 
 export type CartItem = {
@@ -35,7 +39,6 @@ export type CartItem = {
   selectedColor?: string;
 };
 
-// Default product colors
 export const DEFAULT_PRODUCT_COLORS = [
   '#3F2D21', // Amadeirado-Escuro
   '#D4C7B7', // Amadeirado-Claro

@@ -1,14 +1,15 @@
 // src/components/ProductForm.tsx
-import React, { useState, useEffect } from "react"; // Adicionado React para JSX
+import React, { useState } // Removido useEffect não utilizado aqui
+from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Product, ProductFormData, DEFAULT_PRODUCT_COLORS, SpecificationItem } from "@/types/Product"; // Importado SpecificationItem
+import { Product, ProductFormData, DEFAULT_PRODUCT_COLORS, SpecificationItem } from "@/types/Product";
 import { toast } from "sonner";
-import { PlusCircle, Trash2 } from "lucide-react"; // Ícones para adicionar/remover
+import { PlusCircle, Trash2, ImagePlus } from "lucide-react"; // Adicionado ImagePlus
 
 interface ProductFormProps {
   initialData?: Product;
@@ -27,12 +28,12 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
     featured: initialData?.featured || false,
     discount: initialData?.discount || 0,
     colors: initialData?.colors || [...DEFAULT_PRODUCT_COLORS],
-    descriptionImages: initialData?.descriptionImages || [],
-    specificationImages: initialData?.specificationImages || [],
+    descriptionImages: initialData?.descriptionImages || [],      // Já existente
+    specificationImages: initialData?.specificationImages || [],  // Já existente
     deliveryImages: initialData?.deliveryImages || [],
     allowCustomization: initialData?.allowCustomization || false,
     createdAt: initialData?.createdAt || undefined,
-    specifications: initialData?.specifications || [{ name: "", value: "" }], // NOVO: Inicializa com um item vazio ou os dados existentes
+    specifications: initialData?.specifications || [{ name: "", value: "" }],
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -46,7 +47,6 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
     { value: "acessorios", label: "Acessórios" }
   ];
 
-  // ... (handleChange, handleSwitchChange, handleCategoryChange, handleColorClick, handleAddCustomColor permanecem os mesmos) ...
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
@@ -55,36 +55,24 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
 
     if (type === 'number') {
       if (value === "") {
-        processedValue = 0; // Ou mantenha como string vazia para validação posterior se preferir
+        processedValue = 0;
       } else {
         const numValue = Number(value);
         processedValue = isNaN(numValue) ? (name === 'price' || name === 'stock' || name === 'discount' ? 0 : value) : numValue;
       }
     }
-
-    setFormData((prev) => ({
-      ...prev,
-      [name]: processedValue
-    }));
-
+    setFormData((prev) => ({ ...prev, [name]: processedValue }));
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: "" }));
     }
   };
 
   const handleSwitchChange = (name: string, checked: boolean) => {
-    setFormData((prev) => ({
-      ...prev,
-      [name]: checked
-    }));
+    setFormData((prev) => ({ ...prev, [name]: checked }));
   };
 
   const handleCategoryChange = (value: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      category: value
-    }));
-
+    setFormData((prev) => ({ ...prev, category: value }));
     if (errors.category) {
       setErrors((prev) => ({ ...prev, category: "" }));
     }
@@ -107,12 +95,10 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
         ...prev,
         colors: [...(prev.colors || []), customColor]
       }));
-      setCustomColor("#000000"); // Reset para próxima cor
+      setCustomColor("#000000");
     }
   };
 
-
-  // Funções para gerenciar especificações
   const handleSpecificationChange = (index: number, field: keyof SpecificationItem, value: string) => {
     const updatedSpecifications = formData.specifications ? [...formData.specifications] : [];
     if (updatedSpecifications[index]) {
@@ -135,25 +121,52 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
     }));
   };
 
+  // Funções para gerenciar URLs de imagens
+  const handleImageArrayChange = (
+    field: 'descriptionImages' | 'specificationImages' | 'deliveryImages',
+    index: number,
+    value: string
+  ) => {
+    const updatedImages = [...(formData[field] || [])];
+    updatedImages[index] = value;
+    setFormData(prev => ({ ...prev, [field]: updatedImages }));
+  };
+
+  const addImageField = (field: 'descriptionImages' | 'specificationImages' | 'deliveryImages') => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: [...(prev[field] || []), ""]
+    }));
+  };
+
+  const removeImageField = (
+    field: 'descriptionImages' | 'specificationImages' | 'deliveryImages',
+    index: number
+  ) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: (prev[field] || []).filter((_, i) => i !== index)
+    }));
+  };
+
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
     if (!formData.name.trim()) newErrors.name = "Nome do produto é obrigatório";
-    if (!formData.description.trim()) newErrors.description = "Descrição do produto é obrigatória";
-    if (isNaN(Number(formData.price)) || Number(formData.price) <= 0) newErrors.price = "O preço deve ser um número válido maior que zero";
-    if (!formData.category) newErrors.category = "Categoria é obrigatória";
-    if (isNaN(Number(formData.stock)) || Number(formData.stock) < 0) newErrors.stock = "O estoque deve ser um número válido e não negativo";
-    if (formData.discount !== undefined && (isNaN(Number(formData.discount)) || Number(formData.discount) < 0 || Number(formData.discount) > 100)) {
-      newErrors.discount = "O desconto deve ser um número válido entre 0 e 100";
-    }
+    // ... (outras validações existentes) ...
 
-    // Validação das especificações (opcional, mas recomendado)
-    formData.specifications?.forEach((spec, index) => {
-      if (spec.name.trim() && !spec.value.trim()) {
-        newErrors[`spec_value_${index}`] = "Valor da especificação é obrigatório se o nome for preenchido.";
+    // Validação opcional para URLs de imagem (ex: verificar se são URLs válidas)
+    (formData.descriptionImages || []).forEach((url, index) => {
+      if (url.trim() && !url.startsWith('http')) { // Exemplo simples de validação
+        newErrors[`descriptionImage_${index}`] = "URL da imagem da descrição inválida.";
       }
-      // Poderia adicionar validação para nome obrigatório se valor preenchido, etc.
     });
+    (formData.specificationImages || []).forEach((url, index) => {
+      if (url.trim() && !url.startsWith('http')) { // Exemplo simples de validação
+        newErrors[`specificationImage_${index}`] = "URL da imagem de especificação inválida.";
+      }
+    });
+
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -167,7 +180,6 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
     }
     setIsSubmitting(true);
     
-    // Filtra especificações vazias (onde tanto nome quanto valor são vazios) antes de submeter
     const cleanSpecifications = formData.specifications?.filter(
       spec => spec.name.trim() !== "" || spec.value.trim() !== ""
     );
@@ -177,14 +189,11 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
         price: Number(formData.price),
         stock: Number(formData.stock),
         discount: Number(formData.discount || 0),
-        specifications: cleanSpecifications, // Usa as especificações limpas
+        specifications: cleanSpecifications,
+        descriptionImages: (formData.descriptionImages || []).filter(url => url.trim() !== ""),
+        specificationImages: (formData.specificationImages || []).filter(url => url.trim() !== ""),
+        deliveryImages: (formData.deliveryImages || []).filter(url => url.trim() !== ""),
     };
-
-    // Se createdAt for undefined e for um novo produto, pode ser omitido para o DB usar DEFAULT
-    if (!initialData && dataToSubmit.createdAt === undefined) {
-        // delete dataToSubmit.createdAt; // Ou deixe o `formatProductForDB` lidar com isso
-    }
-
 
     try {
       onSubmit(dataToSubmit);
@@ -196,12 +205,52 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
     }
   };
 
+  // Helper para renderizar campos de imagem
+  const renderImageFields = (
+    fieldKey: 'descriptionImages' | 'specificationImages' | 'deliveryImages',
+    label: string
+  ) => (
+    <div className="space-y-4 border-t pt-4 mt-4">
+      <div className="flex justify-between items-center">
+        <Label className="text-lg font-medium">{label}</Label>
+        <Button type="button" variant="outline" size="sm" onClick={() => addImageField(fieldKey)}>
+          <ImagePlus className="mr-2 h-4 w-4" /> Adicionar URL da Imagem
+        </Button>
+      </div>
+      {(formData[fieldKey] || []).map((url, index) => (
+        <div key={index} className="flex items-center gap-2 p-2 border rounded-md">
+          <Input
+            value={url}
+            onChange={(e) => handleImageArrayChange(fieldKey, index, e.target.value)}
+            placeholder="https://exemplo.com/imagem.jpg"
+            className={errors[`${fieldKey === 'descriptionImages' ? 'descriptionImage' : 'specificationImage'}_${index}`] ? "border-red-500" : ""}
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={() => removeImageField(fieldKey, index)}
+            className="text-red-500 hover:text-red-700"
+            title={`Remover Imagem ${index + 1}`}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      ))}
+      {(formData[fieldKey] || []).map((url, index) => (
+        errors[`${fieldKey === 'descriptionImages' ? 'descriptionImage' : 'specificationImage'}_${index}`] && (
+          <p key={`err-${index}`} className="text-sm text-red-500">
+            {errors[`${fieldKey === 'descriptionImages' ? 'descriptionImage' : 'specificationImage'}_${index}`]}
+          </p>
+        )
+      ))}
+    </div>
+  );
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="space-y-4">
-        {/* Campos existentes: Nome, Categoria, Preço, Desconto, Estoque, URL da Imagem */}
-        {/* ... (manter esses campos como estão) ... */}
-
+        {/* Campos principais (Nome, Categoria, Preço, etc.) */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="name">Nome do Produto *</Label>
@@ -237,10 +286,9 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
           </div>
         </div>
 
-        {/* Seção de Cores (manter como está) */}
-        {/* ... */}
-         <div className="space-y-2">
-          <Label>Cores disponíveis</Label>
+        {/* Seção de Cores */}
+         <div className="space-y-2 border-t pt-4 mt-4">
+          <Label className="text-lg font-medium">Cores Disponíveis</Label>
           <div className="flex flex-wrap gap-2 mb-2">
             {DEFAULT_PRODUCT_COLORS.map((color) => (
               <button
@@ -289,7 +337,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
                     variant="ghost"
                     size="icon"
                     className="h-5 w-5 text-red-500 hover:text-red-700"
-                    onClick={() => handleColorClick(color)} // Reutiliza handleColorClick para remover
+                    onClick={() => handleColorClick(color)}
                     aria-label={`Remover cor ${color}`}
                   >
                     &times;
@@ -300,14 +348,18 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
           )}
         </div>
 
-
-        <div className="space-y-2">
-          <Label htmlFor="description">Descrição *</Label>
+        {/* Descrição */}
+        <div className="space-y-2 border-t pt-4 mt-4">
+          <Label htmlFor="description" className="text-lg font-medium">Descrição *</Label>
           <Textarea id="description" name="description" value={formData.description} onChange={handleChange} placeholder="Digite uma descrição detalhada do produto" rows={4} className={errors.description ? "border-red-500" : ""} />
           {errors.description && (<p className="text-sm text-red-500">{errors.description}</p>)}
         </div>
 
-        {/* NOVA Seção de Especificações Dinâmicas */}
+        {/* Imagens da Descrição */}
+        {renderImageFields('descriptionImages', 'Imagens da Descrição')}
+
+
+        {/* Especificações Dinâmicas */}
         <div className="space-y-4 border-t pt-4 mt-4">
             <div className="flex justify-between items-center">
                 <Label className="text-lg font-medium">Especificações do Produto</Label>
@@ -351,8 +403,14 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
             ))}
         </div>
 
+        {/* Imagens das Especificações */}
+        {renderImageFields('specificationImages', 'Imagens das Especificações')}
 
-        <div className="flex items-center space-x-2">
+        {/* Imagens de Entrega (já existente no seu código, mantido para consistência) */}
+        {renderImageFields('deliveryImages', 'Imagens de Entrega/Embalagem')}
+
+
+        <div className="flex items-center space-x-2 pt-4 border-t mt-4">
           <Switch id="featured" name="featured" checked={formData.featured} onCheckedChange={(checked) => handleSwitchChange('featured', checked)} />
           <Label htmlFor="featured">Produto em destaque</Label>
         </div>

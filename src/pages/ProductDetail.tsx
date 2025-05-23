@@ -12,7 +12,7 @@ import { Product, DEFAULT_PRODUCT_COLORS, CartItem as CartItemType, Specificatio
 import { toast } from "sonner";
 import { getProductById, getProductsByCategory } from "@/services/productsService";
 
-// Função addToCart (conforme corrigida anteriormente)
+// Função addToCart (mantenha como está no seu arquivo original)
 const addToCart = (product: Product, quantity: number = 1, customName?: string, customModality?: string, selectedColor?: string) => {
   let cartItems: CartItemType[] = [];
   try {
@@ -49,7 +49,7 @@ const addToCart = (product: Product, quantity: number = 1, customName?: string, 
 
   try {
     localStorage.setItem("cart", JSON.stringify(cartItems));
-    window.dispatchEvent(new Event('storage')); // Dispara evento para atualizar outros componentes ouvindo o storage
+    window.dispatchEvent(new Event('storage'));
   } catch (error) {
     console.error('[ProductDetail] Error saving to localStorage:', error);
     toast.error("Erro ao salvar o carrinho no localStorage.");
@@ -84,12 +84,19 @@ export default function ProductDetailPage() {
   useEffect(() => {
     const fetchProductAndRelated = async () => {
       setLoading(true);
-      setCustomName(""); // Reseta campos de personalização ao mudar de produto
+      setCustomName("");
       setCustomModality("");
       setSelectedColor("");
       try {
         const foundProduct = await getProductById(productId || "");
-        // console.log("Produto carregado em ProductDetail:", foundProduct); // Para depuração
+        // console.log("Dados do produto recebidos em ProductDetail:", JSON.stringify(foundProduct, null, 2));
+        // if (foundProduct) {
+        //   console.log("Especificações do produto:", JSON.stringify(foundProduct.specifications, null, 2));
+        //   console.log("Imagens da Descrição:", JSON.stringify(foundProduct.descriptionImages, null, 2));
+        //   console.log("Imagens das Especificações:", JSON.stringify(foundProduct.specificationImages, null, 2));
+        // } else {
+        //   console.log("Produto não encontrado (foundProduct é null)");
+        // }
         setProduct(foundProduct);
 
         if (foundProduct) {
@@ -345,10 +352,11 @@ export default function ProductDetailPage() {
                   {product.description.split('\n\n').map((paragraph, index) => (
                     <p key={index} className="mb-4">{paragraph}</p>
                   ))}
+                  {/* Renderiza Imagens da Descrição */}
                   {product.descriptionImages && product.descriptionImages.length > 0 && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-                      {product.descriptionImages.map((img, index) => (
-                        <img key={index} src={img} alt={`${product.name} - imagem descritiva ${index + 1}`} className="rounded-md w-full h-auto object-cover"/>
+                      {product.descriptionImages.map((imgUrl, index) => (
+                        imgUrl && <img key={`desc-img-${index}`} src={imgUrl} alt={`${product.name} - imagem descritiva ${index + 1}`} className="rounded-md w-full h-auto object-cover"/>
                       ))}
                     </div>
                   )}
@@ -359,15 +367,14 @@ export default function ProductDetailPage() {
             <section>
               <h2 className="text-xl font-bold mb-6 pb-2 border-b">Especificações</h2>
               <div className="space-y-4">
-                {/* MODIFICADO: Verifica se existem especificações dinâmicas e as renderiza */}
+                {/* Exibe especificações textuais dinâmicas */}
                 {product.specifications && product.specifications.length > 0 && product.specifications.some(spec => spec.name && spec.value) ? (
                   <div className="bg-muted/50 p-4 rounded-lg">
                     <h4 className="font-medium mb-3 text-base">Detalhes Técnicos</h4>
                     <ul className="space-y-2 text-sm">
                       {product.specifications.map((spec, index) => (
-                        // Renderiza apenas se nome e valor da especificação existirem
                         spec.name && spec.value && (
-                          <li key={index} className="flex justify-between gap-2">
+                          <li key={`spec-item-${index}`} className="flex justify-between gap-2">
                             <span className="text-muted-foreground whitespace-nowrap">{spec.name}:</span>
                             <span className="font-medium text-right">{spec.value}</span>
                           </li>
@@ -376,13 +383,25 @@ export default function ProductDetailPage() {
                     </ul>
                   </div>
                 ) : (
-                  // Mensagem caso não haja especificações técnicas dinâmicas ou estejam vazias
                   <div className="bg-muted/50 p-4 rounded-lg">
                      <p className="text-sm text-muted-foreground">Nenhuma especificação técnica detalhada fornecida para este produto.</p>
                   </div>
                 )}
 
-                <div className="bg-muted/50 p-4 rounded-lg">
+                {/* Renderiza Imagens das Especificações */}
+                {product.specificationImages && product.specificationImages.length > 0 && (
+                  <div className="mt-6">
+                    <h4 className="font-medium mb-3 text-base">Imagens Detalhadas das Especificações</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                      {product.specificationImages.map((imgUrl, index) => (
+                        imgUrl && <img key={`spec-img-${index}`} src={imgUrl} alt={`${product.name} - especificação ${index + 1}`} className="rounded-md w-full h-auto object-cover border"/>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Outras Informações - mantidas como estavam */}
+                <div className="bg-muted/50 p-4 rounded-lg mt-4"> {/* Adicionado mt-4 se não houver imagens de especificação */}
                     <h4 className="font-medium mb-3 text-base">Outras Informações</h4>
                     <ul className="space-y-2 text-sm">
                         <li className="flex justify-between">
@@ -407,17 +426,6 @@ export default function ProductDetailPage() {
                         </li>
                     </ul>
                 </div>
-
-                {product.specificationImages && product.specificationImages.length > 0 && (
-                  <div className="mt-6">
-                    <h4 className="font-medium mb-3 text-base">Imagens Detalhadas</h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                      {product.specificationImages.map((img, index) => (
-                        <img key={index} src={img} alt={`${product.name} - especificação ${index + 1}`} className="rounded-md w-full h-auto object-cover border"/>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
             </section>
 
@@ -439,12 +447,13 @@ export default function ProductDetailPage() {
                     <li className="flex items-start gap-2"><Check className="h-4 w-4 text-green-600 mt-1 flex-shrink-0" /><span>O produto deve estar em perfeitas condições, na embalagem original e com todos os acessórios.</span></li>
                   </ul>
                 </div>
+                {/* Renderiza Imagens de Entrega/Embalagem */}
                 {product.deliveryImages && product.deliveryImages.length > 0 && (
                   <div className="mt-6">
                     <h4 className="font-medium mb-3 text-base">Imagens de Embalagem/Envio</h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                      {product.deliveryImages.map((img, index) => (
-                        <img key={index} src={img} alt={`${product.name} - entrega ${index + 1}`} className="rounded-md w-full h-auto object-cover border"/>
+                      {product.deliveryImages.map((imgUrl, index) => (
+                        imgUrl && <img key={`delivery-img-${index}`} src={imgUrl} alt={`${product.name} - entrega ${index + 1}`} className="rounded-md w-full h-auto object-cover border"/>
                       ))}
                     </div>
                   </div>
