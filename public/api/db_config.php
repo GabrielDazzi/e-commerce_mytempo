@@ -3,9 +3,9 @@
 
 // Defina suas credenciais do MySQL (obtenha do painel da Hostinger)
 define('DB_SERVER', 'localhost'); // Ou o host fornecido pela Hostinger
-define('DB_USERNAME', 'mytempo');
+define('DB_USERNAME', 'u962773308_mytempo');
 define('DB_PASSWORD', 'qebhog-bikfos-5qiTpy');
-define('DB_NAME', 'mytempo_ecommerce'); // O nome do seu banco de dados
+define('DB_NAME', 'u662773308_mytempo_ecomme'); // O nome do seu banco de dados
 
 // Tentar conectar ao banco de dados MySQL
 $link = mysqli_connect(DB_SERVER, DB_USERNAME, DB_PASSWORD, DB_NAME);
