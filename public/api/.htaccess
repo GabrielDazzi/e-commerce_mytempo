@@ -1,0 +1,21 @@
+RewriteEngine On
+RewriteBase /api/
+
+# Lidar com requisições para /api/products (sem ID) direcionando para products.php
+RewriteRule ^products/?$ products.php [L,QSA]
+
+# Lidar com requisições para /api/products/algumacoisa (ID, featured, category, search) direcionando para products.php
+# E passando o 'algumacoisa' como parâmetro
+RewriteRule ^products/([a-zA-Z0-9_-]+)/?$ products.php?param1=$1 [L,QSA] # Genérico, ajuste conforme suas necessidades
+RewriteRule ^products/id/([a-zA-Z0-9_-]+)/?$ products.php?id=$1 [L,QSA] # Se quiser /id/uuid
+RewriteRule ^products/category/([a-zA-Z0-9_-]+)/?$ products.php?category=$1 [L,QSA]
+RewriteRule ^products/search/?$ products.php [L,QSA] # Para /products/search?term=...
+RewriteRule ^products/featured/?$ products.php?featured=true [L,QSA]
+
+
+# Se você tiver um product.php para lidar com um único produto por ID
+# RewriteRule ^product/([a-zA-Z0-9_-]+)/?$ product.php?id=$1 [L,QSA]
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php?path=$1 [L,QSA] # Um fallback se você tiver um roteador principal em index.php
