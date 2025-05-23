@@ -16,10 +16,13 @@ export interface Product {
   featured?: boolean;
   discount?: number;
   createdAt: Date;
-  descriptionImages?: string[];      // Já existente e correto
-  specificationImages?: string[];    // Já existente e correto
-  deliveryImages?: string[];         // Já existente
-  allowCustomization?: boolean;
+  descriptionImages?: string[];
+  specificationImages?: string[];
+  deliveryImages?: string[];
+  allowCustomization?: boolean; // Pode ser mantido ou removido
+  allowCustomName?: boolean; // NOVA FLAG
+  allowCustomModality?: boolean; // NOVA FLAG
+  allowCustomColorSelection?: boolean; // NOVA FLAG
   colors?: string[];
   selectedColor?: string;
   specifications?: SpecificationItem[];
@@ -28,6 +31,8 @@ export interface Product {
 export type ProductFormData = Omit<Product, 'id'> & {
   createdAt?: Date;
   // descriptionImages, specificationImages, deliveryImages já estão incluídos por Omit<Product, 'id'>
+  // As novas flags allowCustomName, allowCustomModality, allowCustomColorSelection
+  // também serão incluídas pelo Omit se adicionadas à interface Product.
 };
 
 export type CartItem = {

@@ -1,6 +1,5 @@
 // src/components/ProductForm.tsx
-import React, { useState } // Removido useEffect não utilizado aqui
-from "react";
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,7 +8,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { Switch } from "@/components/ui/switch";
 import { Product, ProductFormData, DEFAULT_PRODUCT_COLORS, SpecificationItem } from "@/types/Product";
 import { toast } from "sonner";
-import { PlusCircle, Trash2, ImagePlus } from "lucide-react"; // Adicionado ImagePlus
+import { PlusCircle, Trash2, ImagePlus } from "lucide-react";
 
 interface ProductFormProps {
   initialData?: Product;
@@ -28,10 +27,13 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
     featured: initialData?.featured || false,
     discount: initialData?.discount || 0,
     colors: initialData?.colors || [...DEFAULT_PRODUCT_COLORS],
-    descriptionImages: initialData?.descriptionImages || [],      // Já existente
-    specificationImages: initialData?.specificationImages || [],  // Já existente
+    descriptionImages: initialData?.descriptionImages || [],
+    specificationImages: initialData?.specificationImages || [],
     deliveryImages: initialData?.deliveryImages || [],
-    allowCustomization: initialData?.allowCustomization || false,
+    allowCustomization: initialData?.allowCustomization || false, // Mantido, mas a lógica principal usará as flags granulares
+    allowCustomName: initialData?.allowCustomName || false,
+    allowCustomModality: initialData?.allowCustomModality || false,
+    allowCustomColorSelection: initialData?.allowCustomColorSelection || false,
     createdAt: initialData?.createdAt || undefined,
     specifications: initialData?.specifications || [{ name: "", value: "" }],
   });
@@ -121,7 +123,6 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
     }));
   };
 
-  // Funções para gerenciar URLs de imagens
   const handleImageArrayChange = (
     field: 'descriptionImages' | 'specificationImages' | 'deliveryImages',
     index: number,
@@ -149,23 +150,30 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
     }));
   };
 
-
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
     if (!formData.name.trim()) newErrors.name = "Nome do produto é obrigatório";
-    // ... (outras validações existentes) ...
+    if (!formData.category.trim()) newErrors.category = "Categoria é obrigatória";
+    if (formData.price <= 0) newErrors.price = "Preço deve ser maior que zero";
+    if (formData.stock < 0) newErrors.stock = "Estoque não pode ser negativo";
+    if (formData.discount && (formData.discount < 0 || formData.discount > 100)) newErrors.discount = "Desconto deve ser entre 0 e 100";
 
-    // Validação opcional para URLs de imagem (ex: verificar se são URLs válidas)
+
     (formData.descriptionImages || []).forEach((url, index) => {
-      if (url.trim() && !url.startsWith('http')) { // Exemplo simples de validação
+      if (url.trim() && !url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('/')) {
         newErrors[`descriptionImage_${index}`] = "URL da imagem da descrição inválida.";
       }
     });
     (formData.specificationImages || []).forEach((url, index) => {
-      if (url.trim() && !url.startsWith('http')) { // Exemplo simples de validação
+      if (url.trim() && !url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('/')) {
         newErrors[`specificationImage_${index}`] = "URL da imagem de especificação inválida.";
       }
     });
+    (formData.deliveryImages || []).forEach((url, index) => {
+        if (url.trim() && !url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('/')) {
+          newErrors[`deliveryImage_${index}`] = "URL da imagem de entrega inválida.";
+        }
+      });
 
 
     setErrors(newErrors);
@@ -205,7 +213,6 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
     }
   };
 
-  // Helper para renderizar campos de imagem
   const renderImageFields = (
     fieldKey: 'descriptionImages' | 'specificationImages' | 'deliveryImages',
     label: string
@@ -222,8 +229,8 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
           <Input
             value={url}
             onChange={(e) => handleImageArrayChange(fieldKey, index, e.target.value)}
-            placeholder="https://exemplo.com/imagem.jpg"
-            className={errors[`${fieldKey === 'descriptionImages' ? 'descriptionImage' : 'specificationImage'}_${index}`] ? "border-red-500" : ""}
+            placeholder="https://exemplo.com/imagem.jpg ou /caminho/local.jpg"
+            className={errors[`${fieldKey.slice(0, -1)}_${index}`] ? "border-red-500" : ""}
           />
           <Button
             type="button"
@@ -237,10 +244,10 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
           </Button>
         </div>
       ))}
-      {(formData[fieldKey] || []).map((url, index) => (
-        errors[`${fieldKey === 'descriptionImages' ? 'descriptionImage' : 'specificationImage'}_${index}`] && (
-          <p key={`err-${index}`} className="text-sm text-red-500">
-            {errors[`${fieldKey === 'descriptionImages' ? 'descriptionImage' : 'specificationImage'}_${index}`]}
+      {(formData[fieldKey] || []).map((_, index) => (
+        errors[`${fieldKey.slice(0, -1)}_${index}`] && (
+          <p key={`err-${fieldKey}-${index}`} className="text-sm text-red-500">
+            {errors[`${fieldKey.slice(0, -1)}_${index}`]}
           </p>
         )
       ))}
@@ -250,7 +257,6 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="space-y-4">
-        {/* Campos principais (Nome, Categoria, Preço, etc.) */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="name">Nome do Produto *</Label>
@@ -286,7 +292,6 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
           </div>
         </div>
 
-        {/* Seção de Cores */}
          <div className="space-y-2 border-t pt-4 mt-4">
           <Label className="text-lg font-medium">Cores Disponíveis</Label>
           <div className="flex flex-wrap gap-2 mb-2">
@@ -348,18 +353,14 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
           )}
         </div>
 
-        {/* Descrição */}
         <div className="space-y-2 border-t pt-4 mt-4">
           <Label htmlFor="description" className="text-lg font-medium">Descrição *</Label>
           <Textarea id="description" name="description" value={formData.description} onChange={handleChange} placeholder="Digite uma descrição detalhada do produto" rows={4} className={errors.description ? "border-red-500" : ""} />
           {errors.description && (<p className="text-sm text-red-500">{errors.description}</p>)}
         </div>
 
-        {/* Imagens da Descrição */}
         {renderImageFields('descriptionImages', 'Imagens da Descrição')}
 
-
-        {/* Especificações Dinâmicas */}
         <div className="space-y-4 border-t pt-4 mt-4">
             <div className="flex justify-between items-center">
                 <Label className="text-lg font-medium">Especificações do Produto</Label>
@@ -403,12 +404,8 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
             ))}
         </div>
 
-        {/* Imagens das Especificações */}
         {renderImageFields('specificationImages', 'Imagens das Especificações')}
-
-        {/* Imagens de Entrega (já existente no seu código, mantido para consistência) */}
         {renderImageFields('deliveryImages', 'Imagens de Entrega/Embalagem')}
-
 
         <div className="flex items-center space-x-2 pt-4 border-t mt-4">
           <Switch id="featured" name="featured" checked={formData.featured} onCheckedChange={(checked) => handleSwitchChange('featured', checked)} />
@@ -417,8 +414,21 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
         
         <div className="flex items-center space-x-2">
           <Switch id="allowCustomization" name="allowCustomization" checked={formData.allowCustomization} onCheckedChange={(checked) => handleSwitchChange('allowCustomization', checked)} />
-          <Label htmlFor="allowCustomization">Permitir personalização de texto</Label>
+          <Label htmlFor="allowCustomization">Permitir personalização (Antigo, não funciona)</Label>
         </div>
+        <div className="flex items-center space-x-2">
+          <Switch id="allowCustomName" name="allowCustomName" checked={formData.allowCustomName} onCheckedChange={(checked) => handleSwitchChange('allowCustomName', checked)} />
+          <Label htmlFor="allowCustomName">Permitir gravação de Nome</Label>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Switch id="allowCustomModality" name="allowCustomModality" checked={formData.allowCustomModality} onCheckedChange={(checked) => handleSwitchChange('allowCustomModality', checked)} />
+          <Label htmlFor="allowCustomModality">Permitir gravação de Modalidade</Label>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Switch id="allowCustomColorSelection" name="allowCustomColorSelection" checked={formData.allowCustomColorSelection} onCheckedChange={(checked) => handleSwitchChange('allowCustomColorSelection', checked)} />
+          <Label htmlFor="allowCustomColorSelection">Permitir seleção de Cor</Label>
+        </div>
+
       </div>
 
       <div className="flex justify-end gap-2 pt-4 border-t">

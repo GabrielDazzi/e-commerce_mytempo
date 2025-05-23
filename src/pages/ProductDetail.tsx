@@ -12,7 +12,6 @@ import { Product, DEFAULT_PRODUCT_COLORS, CartItem as CartItemType, Specificatio
 import { toast } from "sonner";
 import { getProductById, getProductsByCategory } from "@/services/productsService";
 
-// Função addToCart (mantenha como está no seu arquivo original)
 const addToCart = (product: Product, quantity: number = 1, customName?: string, customModality?: string, selectedColor?: string) => {
   let cartItems: CartItemType[] = [];
   try {
@@ -89,14 +88,6 @@ export default function ProductDetailPage() {
       setSelectedColor("");
       try {
         const foundProduct = await getProductById(productId || "");
-        // console.log("Dados do produto recebidos em ProductDetail:", JSON.stringify(foundProduct, null, 2));
-        // if (foundProduct) {
-        //   console.log("Especificações do produto:", JSON.stringify(foundProduct.specifications, null, 2));
-        //   console.log("Imagens da Descrição:", JSON.stringify(foundProduct.descriptionImages, null, 2));
-        //   console.log("Imagens das Especificações:", JSON.stringify(foundProduct.specificationImages, null, 2));
-        // } else {
-        //   console.log("Produto não encontrado (foundProduct é null)");
-        // }
         setProduct(foundProduct);
 
         if (foundProduct) {
@@ -107,7 +98,7 @@ export default function ProductDetailPage() {
             ? foundProduct.colors
             : DEFAULT_PRODUCT_COLORS;
 
-          if (colorsToUse.length > 0) {
+          if (colorsToUse.length > 0 && foundProduct.allowCustomColorSelection) { // Verifica se a seleção de cor é permitida
             setSelectedColor(colorsToUse[0]);
           }
         }
@@ -135,15 +126,15 @@ export default function ProductDetailPage() {
 
   const handleAddToCartInternal = () => {
     if (product) {
-      const colorToSave = (product.allowCustomization && displayProductColors.length > 0)
+      const colorToSave = (product.allowCustomColorSelection && displayProductColors.length > 0)
         ? selectedColor
         : undefined;
 
       addToCart(
         product,
         quantity,
-        product.allowCustomization ? customName : undefined,
-        product.allowCustomization ? customModality : undefined,
+        product.allowCustomName ? customName : undefined,
+        product.allowCustomModality ? customModality : undefined,
         colorToSave
       );
       toast.success(`${quantity} ${product.name} adicionado(s) ao carrinho!`);
@@ -266,40 +257,45 @@ export default function ProductDetailPage() {
               </div>
               <Separator />
 
-              {product.allowCustomization && (
+              { (product.allowCustomName || product.allowCustomModality || product.allowCustomColorSelection) && (
                 <div className="space-y-4">
                   <h3 className="font-medium">Personalização</h3>
                   <div className="space-y-3">
-                    <div className="space-y-1">
-                      <Label htmlFor="customName">Nome a ser gravado</Label>
-                      <Input
-                        id="customName"
-                        placeholder="Ex: João Silva"
-                        value={customName}
-                        onChange={(e) => setCustomName(e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label htmlFor="customModality">Modalidade</Label>
-                      <Input
-                        id="customModality"
-                        placeholder="Ex: Atletismo"
-                        value={customModality}
-                        onChange={(e) => setCustomModality(e.target.value)}
-                      />
-                    </div>
+                    {product.allowCustomName && (
+                      <div className="space-y-1">
+                        <Label htmlFor="customName">Nome a ser gravado</Label>
+                        <Input
+                          id="customName"
+                          placeholder="Ex: João Silva"
+                          value={customName}
+                          onChange={(e) => setCustomName(e.target.value)}
+                        />
+                      </div>
+                    )}
+                    {product.allowCustomModality && (
+                      <div className="space-y-1">
+                        <Label htmlFor="customModality">Modalidade</Label>
+                        <Input
+                          id="customModality"
+                          placeholder="Ex: Atletismo"
+                          value={customModality}
+                          onChange={(e) => setCustomModality(e.target.value)}
+                        />
+                      </div>
+                    )}
 
-                    {displayProductColors.length > 0 && (
+                    {product.allowCustomColorSelection && displayProductColors.length > 0 && (
                       <div className="space-y-2">
                         <Label>Cor</Label>
                         <div className="flex items-center gap-3 flex-wrap">
                           {displayProductColors.map((colorValue) => {
                             const colorName = AVAILABLE_COLORS_MAP[colorValue.toUpperCase()] || AVAILABLE_COLORS_MAP[colorValue.toLowerCase()] || colorValue;
+                            const isSelected = selectedColor === colorValue;
                             return (
                               <button
                                 key={colorValue}
-                                className={`w-8 h-8 rounded-full border-2 transition-all ${selectedColor === colorValue ? 'border-foreground ring-2 ring-offset-2 ring-primary scale-110' : 'border-gray-300 hover:border-gray-400'}`}
-                                style={{ backgroundColor: colorValue, borderColor: colorValue === '#000000' && selectedColor !== '#000000' ? '#333' : undefined }}
+                                className={`w-8 h-8 rounded-full border-2 transition-all ${isSelected ? 'border-foreground ring-2 ring-offset-2 ring-primary scale-110' : 'border-gray-300 hover:border-gray-400'}`}
+                                style={{ backgroundColor: colorValue, borderColor: colorValue === '#000000' && !isSelected ? '#333' : undefined }}
                                 onClick={() => setSelectedColor(colorValue)}
                                 title={colorName}
                                 aria-label={`Selecionar cor ${colorName}`}
@@ -310,7 +306,9 @@ export default function ProductDetailPage() {
                       </div>
                     )}
                   </div>
-                  <Separator />
+                  { (product.allowCustomName || product.allowCustomModality || product.allowCustomColorSelection) && (
+                    <Separator />
+                  )}
                 </div>
               )}
 
@@ -352,7 +350,6 @@ export default function ProductDetailPage() {
                   {product.description.split('\n\n').map((paragraph, index) => (
                     <p key={index} className="mb-4">{paragraph}</p>
                   ))}
-                  {/* Renderiza Imagens da Descrição */}
                   {product.descriptionImages && product.descriptionImages.length > 0 && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
                       {product.descriptionImages.map((imgUrl, index) => (
@@ -367,7 +364,6 @@ export default function ProductDetailPage() {
             <section>
               <h2 className="text-xl font-bold mb-6 pb-2 border-b">Especificações</h2>
               <div className="space-y-4">
-                {/* Exibe especificações textuais dinâmicas */}
                 {product.specifications && product.specifications.length > 0 && product.specifications.some(spec => spec.name && spec.value) ? (
                   <div className="bg-muted/50 p-4 rounded-lg">
                     <h4 className="font-medium mb-3 text-base">Detalhes Técnicos</h4>
@@ -388,7 +384,6 @@ export default function ProductDetailPage() {
                   </div>
                 )}
 
-                {/* Renderiza Imagens das Especificações */}
                 {product.specificationImages && product.specificationImages.length > 0 && (
                   <div className="mt-6">
                     <h4 className="font-medium mb-3 text-base">Imagens Detalhadas das Especificações</h4>
@@ -400,8 +395,7 @@ export default function ProductDetailPage() {
                   </div>
                 )}
 
-                {/* Outras Informações - mantidas como estavam */}
-                <div className="bg-muted/50 p-4 rounded-lg mt-4"> {/* Adicionado mt-4 se não houver imagens de especificação */}
+                <div className="bg-muted/50 p-4 rounded-lg mt-4">
                     <h4 className="font-medium mb-3 text-base">Outras Informações</h4>
                     <ul className="space-y-2 text-sm">
                         <li className="flex justify-between">
@@ -447,7 +441,6 @@ export default function ProductDetailPage() {
                     <li className="flex items-start gap-2"><Check className="h-4 w-4 text-green-600 mt-1 flex-shrink-0" /><span>O produto deve estar em perfeitas condições, na embalagem original e com todos os acessórios.</span></li>
                   </ul>
                 </div>
-                {/* Renderiza Imagens de Entrega/Embalagem */}
                 {product.deliveryImages && product.deliveryImages.length > 0 && (
                   <div className="mt-6">
                     <h4 className="font-medium mb-3 text-base">Imagens de Embalagem/Envio</h4>
@@ -524,8 +517,13 @@ function CategoryBadge({ category }: { category: string }) {
     case "trofeus": case "trophies":
       icon = <Trophy className="h-3 w-3" />;
       label = "Troféus";
-      classes = "bg-sport-blue/20 text-sport-blue";
+      classes = "bg-sport-blue/20 text-sport-blue"; // Você pode definir uma cor para 'sport-blue' em tailwind.config.ts
       break;
+    case "medalhas":
+        icon = <Medal className="h-3 w-3" />; // Reutilizando o ícone de medalha, ajuste se necessário
+        label = "Medalhas";
+        classes = "bg-sport-silver/20 text-sport-silver"; // Exemplo, defina 'sport-silver'
+        break;
     default:
       icon = <Medal className="h-3 w-3" />;
       label = getCategoryLabel(category);

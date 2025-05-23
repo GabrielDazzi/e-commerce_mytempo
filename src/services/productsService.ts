@@ -41,10 +41,13 @@ const parseDate = (dateInput: string | Date | undefined | null): Date => {
       imageurl: product.imageUrl,
       featured: product.featured,
       discount: Number(product.discount || 0),
-      descriptionimages: product.descriptionImages || [], // Mapeia de camelCase para snake_case (se necessário)
-      specificationimages: product.specificationImages || [], // Mapeia
-      deliveryimages: product.deliveryImages || [],         // Mapeia
+      descriptionimages: product.descriptionImages || [],
+      specificationimages: product.specificationImages || [],
+      deliveryimages: product.deliveryImages || [],
       allowcustomization: product.allowCustomization,
+      allowcustomname: product.allowCustomName, // NOVO
+      allowcustommodality: product.allowCustomModality, // NOVO
+      allowcustomcolorselection: product.allowCustomColorSelection, // NOVO
       colors: product.colors,
       specifications: product.specifications || [],
     };
@@ -62,7 +65,6 @@ const parseDate = (dateInput: string | Date | undefined | null): Date => {
   };
 
   const formatProductFromDB = (dbProduct: any): Product => {
-    // console.log("Dados brutos do DB para formatProductFromDB:", JSON.stringify(dbProduct, null, 2));
     const formattedProduct = {
       id: dbProduct.id,
       name: dbProduct.name,
@@ -74,18 +76,19 @@ const parseDate = (dateInput: string | Date | undefined | null): Date => {
       featured: dbProduct.featured || false,
       discount: isNaN(Number(dbProduct.discount)) ? 0 : Number(dbProduct.discount || 0),
       createdAt: parseDate(dbProduct.createdat),
-      descriptionImages: dbProduct.descriptionimages || [],      // Mapeia de snake_case (se vier assim do DB) para camelCase
-      specificationImages: dbProduct.specificationimages || [],    // Mapeia
-      deliveryImages: dbProduct.deliveryimages || [],            // Mapeia
+      descriptionImages: dbProduct.descriptionimages || [],
+      specificationImages: dbProduct.specificationimages || [],
+      deliveryImages: dbProduct.deliveryimages || [],
       allowCustomization: dbProduct.allowcustomization || false,
+      allowCustomName: dbProduct.allowcustomname || false, // NOVO
+      allowCustomModality: dbProduct.allowcustommodality || false, // NOVO
+      allowCustomColorSelection: dbProduct.allowcustomcolorselection || false, // NOVO
       colors: dbProduct.colors || [],
       specifications: dbProduct.specifications || [],
     };
-    // console.log("Produto formatado por formatProductFromDB:", JSON.stringify(formattedProduct, null, 2));
     return formattedProduct;
   };
 
-  // Mock data - deve incluir os novos campos se for usado
   const mockProducts: Product[] = [
       {
           id: '1',
@@ -98,19 +101,17 @@ const parseDate = (dateInput: string | Date | undefined | null): Date => {
           featured: true,
           discount: 10,
           createdAt: new Date(),
-          descriptionImages: ['/placeholder.svg', '/placeholder.svg'], // Exemplo
-          specificationImages: ['/placeholder.svg'], // Exemplo
+          descriptionImages: ['/placeholder.svg', '/placeholder.svg'],
+          specificationImages: ['/placeholder.svg'],
           deliveryImages: [],
           allowCustomization: true,
+          allowCustomName: true, // NOVO
+          allowCustomModality: true, // NOVO
+          allowCustomColorSelection: true, // NOVO
           colors: ['gold', 'silver'],
           specifications: [{name: "Material Mock", value: "Plástico ABS"}, {name: "Altura Mock", value: "30cm"}],
         },
-        // ... outros mocks
   ];
-
-  // Funções CRUD (createProduct, updateProduct, getAllProducts, getProductById, etc.)
-  // devem continuar funcionando bem, pois formatProductForDB e formatProductFromDB
-  // já lidam com os novos campos. `select('*')` trará as novas colunas.
 
   export const createProduct = async (productFormData: ProductFormData): Promise<Product> => {
       console.log("productsService: createProduct com (form data):", productFormData);
@@ -126,6 +127,9 @@ const parseDate = (dateInput: string | Date | undefined | null): Date => {
               descriptionImages: productFormData.descriptionImages || [],
               specificationImages: productFormData.specificationImages || [],
               deliveryImages: productFormData.deliveryImages || [],
+              allowCustomName: productFormData.allowCustomName || false, // NOVO
+              allowCustomModality: productFormData.allowCustomModality || false, // NOVO
+              allowCustomColorSelection: productFormData.allowCustomColorSelection || false, // NOVO
           };
           mockProducts.push(newProduct);
           return Promise.resolve(newProduct);
@@ -161,6 +165,9 @@ const parseDate = (dateInput: string | Date | undefined | null): Date => {
                   descriptionImages: productFormData.descriptionImages || mockProducts[index].descriptionImages,
                   specificationImages: productFormData.specificationImages || mockProducts[index].specificationImages,
                   deliveryImages: productFormData.deliveryImages || mockProducts[index].deliveryImages,
+                  allowCustomName: productFormData.allowCustomName || mockProducts[index].allowCustomName, // NOVO
+                  allowCustomModality: productFormData.allowCustomModality || mockProducts[index].allowCustomModality, // NOVO
+                  allowCustomColorSelection: productFormData.allowCustomColorSelection || mockProducts[index].allowCustomColorSelection, // NOVO
               };
               mockProducts[index] = updatedMockProduct;
               return Promise.resolve(updatedMockProduct);
@@ -187,10 +194,8 @@ const parseDate = (dateInput: string | Date | undefined | null): Date => {
   };
 
   export const getAllProducts = async (): Promise<Product[]> => {
-    // console.log("productsService: getAllProducts iniciado");
     if (!isSupabaseConfigured()) {
-      // console.log('productsService: Usando mock data para getAllProducts');
-      return Promise.resolve([...mockProducts]);
+      return Promise.resolve([...mockProducts].map(p => formatProductFromDB(formatProductForDB(p)))); // Garante formatação consistente
     }
 
     try {
@@ -203,7 +208,6 @@ const parseDate = (dateInput: string | Date | undefined | null): Date => {
         console.error('productsService: Erro ao buscar produtos no Supabase:', error);
         throw error;
       }
-      // console.log("productsService: Produtos buscados do Supabase (raw):", data);
       return (data || []).map(formatProductFromDB);
     } catch (err) {
       console.error('productsService: Falha ao buscar produtos (catch):', err);
@@ -215,11 +219,9 @@ const parseDate = (dateInput: string | Date | undefined | null): Date => {
   };
 
   export const getProductById = async (id: string): Promise<Product | null> => {
-    // console.log(`productsService: getProductById (ID: ${id}) iniciado`);
     if (!isSupabaseConfigured()) {
       const product = mockProducts.find(p => p.id === id);
-      // console.log(`productsService: Usando mock data para getProductById (ID: ${id}):`, product);
-      return product ? Promise.resolve(product) : Promise.resolve(null);
+      return product ? Promise.resolve(formatProductFromDB(formatProductForDB(product))) : Promise.resolve(null); // Garante formatação
     }
 
     try {
@@ -229,18 +231,12 @@ const parseDate = (dateInput: string | Date | undefined | null): Date => {
         .eq('id', id)
         .single();
 
-      // console.log(`productsService: Dados recebidos do Supabase para ID ${id}:`, JSON.stringify(data, null, 2));
-
-
       if (error) {
-        // console.error(`productsService: Erro ao buscar produto por ID (${id}) no Supabase:`, error);
         if (error.code === 'PGRST116') return null;
         throw error;
       }
-      // console.log(`productsService: Produto por ID (${id}) buscado do Supabase (raw):`, data);
       return data ? formatProductFromDB(data) : null;
     } catch (err) {
-      // console.error(`productsService: Falha ao buscar produto por ID (${id}) (catch):`, err);
        if (err instanceof Error) {
           throw err;
       }
@@ -249,14 +245,11 @@ const parseDate = (dateInput: string | Date | undefined | null): Date => {
   };
 
   export const deleteProduct = async (id: string): Promise<void> => {
-    // console.log(`productsService: deleteProduct (ID: ${id}) iniciado`);
     if (!isSupabaseConfigured()) {
-      const initialLength = mockProducts.length;
       const index = mockProducts.findIndex(p => p.id === id);
       if (index > -1) {
           mockProducts.splice(index, 1);
       }
-      // console.log(`productsService: Usando mock data para deletar produto (ID: ${id}). Mock products length changed: ${initialLength !== mockProducts.length}`);
       return Promise.resolve();
     }
 
@@ -267,12 +260,9 @@ const parseDate = (dateInput: string | Date | undefined | null): Date => {
         .eq('id', id);
 
       if (error) {
-        // console.error(`productsService: Erro ao deletar produto (ID: ${id}) no Supabase:`, error);
         throw error;
       }
-      // console.log(`productsService: Produto (ID: ${id}) deletado no Supabase com sucesso`);
     } catch (err: any) {
-      // console.error(`productsService: Falha ao deletar produto (ID: ${id}) (catch global):`, err);
       const message = err.message || 'Ocorreu um erro desconhecido.';
       throw new Error(`Falha ao deletar produto: ${message}`.trim());
     }
@@ -283,7 +273,7 @@ const parseDate = (dateInput: string | Date | undefined | null): Date => {
       return mockProducts.filter(product =>
         product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (product.description && product.description.toLowerCase().includes(searchTerm.toLowerCase()))
-      );
+      ).map(p => formatProductFromDB(formatProductForDB(p))); // Garante formatação
     }
     try {
       const { data, error } = await supabase
@@ -300,7 +290,7 @@ const parseDate = (dateInput: string | Date | undefined | null): Date => {
   };
 
   export const getProductsByCategory = async (category: string): Promise<Product[]> => {
-      if (!isSupabaseConfigured()) return mockProducts.filter(product => product.category === category);
+      if (!isSupabaseConfigured()) return mockProducts.filter(product => product.category === category).map(p => formatProductFromDB(formatProductForDB(p))); // Garante formatação
       try {
           const { data, error } = await supabase
           .from(PRODUCTS_TABLE)
@@ -316,7 +306,7 @@ const parseDate = (dateInput: string | Date | undefined | null): Date => {
   };
 
   export const getFeaturedProducts = async (): Promise<Product[]> => {
-      if (!isSupabaseConfigured()) return mockProducts.filter(product => product.featured);
+      if (!isSupabaseConfigured()) return mockProducts.filter(product => product.featured).map(p => formatProductFromDB(formatProductForDB(p))); // Garante formatação
       try {
           const { data, error } = await supabase
           .from(PRODUCTS_TABLE)

@@ -10,7 +10,7 @@ import { supabase, isSupabaseConfigured } from './supabase';
 -- Primeiro, crie a extensão se ainda não existir (geralmente já existe em projetos Supabase)
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- Cria a tabela products SE ELA NÃO EXISTIR, já com as colunas de imagens
+-- Cria a tabela products SE ELA NÃO EXISTIR, já com as colunas de imagens e novas flags de personalização
 CREATE TABLE IF NOT EXISTS products (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name TEXT NOT NULL,
@@ -25,16 +25,22 @@ CREATE TABLE IF NOT EXISTS products (
   description_images TEXT[] DEFAULT '{}',      -- Coluna para imagens da descrição
   specification_images TEXT[] DEFAULT '{}',    -- Coluna para imagens das especificações
   delivery_images TEXT[] DEFAULT '{}',         -- Coluna para imagens de entrega
-  allow_customization BOOLEAN DEFAULT false,
+  allow_customization BOOLEAN DEFAULT false,   -- Flag geral de personalização (pode ser mantida ou removida)
+  allowcustomname BOOLEAN DEFAULT false,       -- NOVA FLAG para nome personalizado
+  allowcustommodality BOOLEAN DEFAULT false,   -- NOVA FLAG para modalidade personalizada
+  allowcustomcolorselection BOOLEAN DEFAULT false, -- NOVA FLAG para seleção de cor
   colors TEXT[] DEFAULT '{}',
   specifications JSONB DEFAULT '[]'::jsonb
 );
 
--- Se a tabela products JÁ EXISTE, garanta que as colunas de imagens existam:
+-- Se a tabela products JÁ EXISTE, garanta que as colunas de imagens e novas flags de personalização existam:
 ALTER TABLE products
 ADD COLUMN IF NOT EXISTS description_images TEXT[] DEFAULT '{}',
 ADD COLUMN IF NOT EXISTS specification_images TEXT[] DEFAULT '{}',
-ADD COLUMN IF NOT EXISTS delivery_images TEXT[] DEFAULT '{}';
+ADD COLUMN IF NOT EXISTS delivery_images TEXT[] DEFAULT '{}',
+ADD COLUMN IF NOT EXISTS allowcustomname BOOLEAN DEFAULT false,
+ADD COLUMN IF NOT EXISTS allowcustommodality BOOLEAN DEFAULT false,
+ADD COLUMN IF NOT EXISTS allowcustomcolorselection BOOLEAN DEFAULT false;
 
 
 -- Stored Procedure para criar/alterar a tabela products
@@ -56,17 +62,26 @@ BEGIN
     specification_images TEXT[] DEFAULT '{}',
     delivery_images TEXT[] DEFAULT '{}',
     allow_customization BOOLEAN DEFAULT false,
+    allowcustomname BOOLEAN DEFAULT false,      -- NOVA FLAG
+    allowcustommodality BOOLEAN DEFAULT false,  -- NOVA FLAG
+    allowcustomcolorselection BOOLEAN DEFAULT false, -- NOVA FLAG
     colors TEXT[] DEFAULT '{}',
     specifications JSONB DEFAULT '[]'::jsonb
   );
 
-  -- Garante que as colunas de imagem existam se a tabela já foi criada
+  -- Garante que as colunas de imagem e novas flags existam se a tabela já foi criada
   ALTER TABLE products
   ADD COLUMN IF NOT EXISTS description_images TEXT[] DEFAULT '{}';
   ALTER TABLE products
   ADD COLUMN IF NOT EXISTS specification_images TEXT[] DEFAULT '{}';
   ALTER TABLE products
   ADD COLUMN IF NOT EXISTS delivery_images TEXT[] DEFAULT '{}';
+  ALTER TABLE products
+  ADD COLUMN IF NOT EXISTS allowcustomname BOOLEAN DEFAULT false;
+  ALTER TABLE products
+  ADD COLUMN IF NOT EXISTS allowcustommodality BOOLEAN DEFAULT false;
+  ALTER TABLE products
+  ADD COLUMN IF NOT EXISTS allowcustomcolorselection BOOLEAN DEFAULT false;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -88,7 +103,7 @@ export const initializeDatabase = async () => {
     const { error: rpcError } = await supabase.rpc('create_products_table');
 
     if (rpcError) {
-      console.warn('Failed to execute create_products_table RPC. This is okay if the table and columns (description_images, specification_images, delivery_images) already exist or were created/altered manually. Error:', rpcError.message);
+      console.warn('Failed to execute create_products_table RPC. This is okay if the table and columns already exist or were created/altered manually. Error:', rpcError.message);
     } else {
       console.log('create_products_table RPC executed or table schema already up-to-date.');
     }
