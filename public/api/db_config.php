@@ -1,30 +1,27 @@
 <?php
 // api/db_config.php
 
-// Defina suas credenciais do MySQL (obtenha do painel da Hostinger)
-define('DB_SERVER', 'localhost'); // Ou o host fornecido pela Hostinger
-define('DB_USERNAME', 'u962773308_mytempo');
-define('DB_PASSWORD', 'qebhog-bikfos-5qiTpy');
-define('DB_NAME', 'u662773308_mytempo_ecomme'); // O nome do seu banco de dados
+// VERIFIQUE ESTES VALORES COM ATENÇÃO NO SEU ARQUIVO NA HOSTINGER
+define('DB_SERVER', 'localhost'); // Hostinger geralmente usa 'localhost' para scripts no mesmo servidor. Confirme no hPanel.
+define('DB_USERNAME', 'u962773308_mytempo'); // Do seu print do phpMyAdmin/Hostinger.
+define('DB_PASSWORD', 'qebhog-bikfos-5qiTpy'); // ESTA É A SENHA CRÍTICA.
+define('DB_NAME', 'u962773308_mytempo_ecomme'); // Do seu print do phpMyAdmin/Hostinger.
 
-// Tentar conectar ao banco de dados MySQL
 $link = mysqli_connect(DB_SERVER, DB_USERNAME, DB_PASSWORD, DB_NAME);
 
-// Checar conexão
 if($link === false){
-    // Não use die() em produção para uma API JSON, retorne um erro JSON apropriado.
-    // Para depuração inicial:
-    // die("ERRO: Não foi possível conectar. " . mysqli_connect_error());
-
-    // Para uma API, você faria algo como:
-    // header('Content-Type: application/json');
-    // http_response_code(500);
-    // echo json_encode(['error' => 'Erro interno do servidor: Não foi possível conectar ao banco de dados.']);
-    // exit;
+    error_log("CRITICAL: Falha ao conectar ao banco de dados MySQL. Erro: " . mysqli_connect_error() . 
+              " (Host: " . DB_SERVER . ", User: " . DB_USERNAME . ", DB: " . DB_NAME . ")");
+    if (!headers_sent()) {
+        header("Access-Control-Allow-Origin: https://portamedalhas.shop");
+        header("Content-Type: application/json; charset=UTF-8");
+        http_response_code(503); 
+    }
+    echo json_encode(['error' => 'Serviço indisponível no momento. Por favor, tente mais tarde.']);
+    exit;
 }
 
-// Opcional: Definir o charset para utf8mb4 para suportar emojis e caracteres especiais
-mysqli_set_charset($link, "utf8mb4");
-
-// A variável $link agora está disponível para ser usada nos seus scripts de endpoint.
+if (!mysqli_set_charset($link, "utf8mb4")) {
+    error_log("Erro ao definir charset utf8mb4 para a conexão MySQL: " . mysqli_error($link));
+}
 ?>
