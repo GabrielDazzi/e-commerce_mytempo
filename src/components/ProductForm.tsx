@@ -414,7 +414,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
         
         <div className="flex items-center space-x-2">
           <Switch id="allowCustomization" name="allowCustomization" checked={formData.allowCustomization} onCheckedChange={(checked) => handleSwitchChange('allowCustomization', checked)} />
-          <Label htmlFor="allowCustomization">Permitir personalização (Antigo, não funciona)</Label>
+          <Label htmlFor="allowCustomization">Permitir personalização (Antigo, Não funciona, Não usar)</Label>
         </div>
         <div className="flex items-center space-x-2">
           <Switch id="allowCustomName" name="allowCustomName" checked={formData.allowCustomName} onCheckedChange={(checked) => handleSwitchChange('allowCustomName', checked)} />
