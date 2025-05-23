@@ -493,7 +493,7 @@ export default function AdminPanel() {
 function CategoryBadge({ category }: { category: string }) {
   let icon;
   let label = "";
-  let variant: "default" | "secondary" | "outline" | "destructive" = "outline"; // Adicionado destructive ao tipo
+  let variant: "default" | "s§econdary" | "outline" | "destructive" = "outline"; // Adicionado destructive ao tipo
   
   switch (category) {
     case "porta-medalhas":
