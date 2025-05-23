@@ -4,21 +4,21 @@ export interface Product {
   description: string;
   price: number;
   category: string;
-  imageUrl: string; // camelCase
+  imageurl?: string; // Minúsculo para corresponder ao DB (Supabase client mapeia JS imageUrl para imageurl)
   stock: number;
   featured?: boolean;
   discount?: number;
-  createdAt: Date; // camelCase
-  descriptionImages?: string[]; // camelCase
-  specificationImages?: string[]; // camelCase
-  deliveryImages?: string[]; // camelCase
-  allowCustomization?: boolean; // camelCase
-  colors?: string[]; // camelCase
-  selectedColor?: string; // UI only
+  createdat: Date; // Minúsculo para corresponder ao DB
+  descriptionimages?: string[]; // Minúsculo
+  specificationimages?: string[]; // Minúsculo
+  deliveryimages?: string[]; // Minúsculo
+  allowcustomization?: boolean; // Minúsculo
+  colors?: string[];
+  selectedColor?: string; // Este campo não existe no DB, apenas no frontend
 }
 
 export type ProductFormData = Omit<Product, 'id'> & {
-  createdAt?: Date; // camelCase
+  createdat?: Date; // Minúsculo
 };
 
 export type CartItem = {

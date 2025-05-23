@@ -1,3 +1,4 @@
+// src/pages/ProductDetail.tsx
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Navbar } from "@/components/Navbar";
@@ -7,35 +8,22 @@ import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ShoppingCart, ArrowLeft, Medal, Trophy, Check } from "lucide-react";
-import { Product, CartItem as CartItemType } from "@/types/Product"; // Product deve ter propriedades minúsculas
+import { Product } from "@/types/Product";
 import { toast } from "sonner";
-import { getProductById, getAllProducts } from "@/services/productsService";
+import { getProductById, getProductsByCategory } from "@/services/productsService"; // Import service functions
 
-// Paleta de cores de UI para mapear nomes, se necessário
-const UI_COLOR_PALETTE = [
-  { name: "Dourado", value: "#FFD700" },
-  { name: "Prata", value: "#C0C0C0" },
-  { name: "Bronze", value: "#CD7F32" },
-  { name: "Preto", value: "#000000" },
-  { name: "Azul", value: "#0000FF" },
-  { name: "Vermelho", value: "#FF0000" },
-  // Adicione outras cores de DEFAULT_PRODUCT_COLORS se precisar mapear nomes
-];
+// Remove MOCK_PRODUCTS as it will now come from Supabase
+// const MOCK_PRODUCTS: Product[] = [...];
 
-const addToCart = (
-  product: Product,
-  quantity: number = 1,
-  customName?: string,
-  customModality?: string,
-  selectedColor?: string
-) => {
-  const cartItems: CartItemType[] = JSON.parse(localStorage.getItem("cart") || "[]");
+const addToCart = (product: Product, quantity: number = 1, customName?: string, customModality?: string, customColor?: string) => {
+  const cartItems = JSON.parse(localStorage.getItem("cart") || "[]");
+
   const existingItemIndex = cartItems.findIndex(
-    (item: CartItemType) =>
+    (item: { productId: string; customName?: string; customModality?: string; customColor?: string }) =>
       item.productId === product.id &&
       item.customName === customName &&
       item.customModality === customModality &&
-      item.selectedColor === selectedColor
+      item.customColor === customColor
   );
 
   if (existingItemIndex !== -1) {
@@ -44,14 +32,25 @@ const addToCart = (
     cartItems.push({
       productId: product.id,
       quantity,
-      product, // product aqui já está com propriedades minúsculas devido ao tipo Product
+      product,
       customName,
       customModality,
-      selectedColor,
+      customColor
     });
   }
+
   localStorage.setItem("cart", JSON.stringify(cartItems));
 };
+
+// Array de cores disponíveis
+const AVAILABLE_COLORS = [
+  { name: "Dourado", value: "#FFD700" },
+  { name: "Prata", value: "#C0C0C0" },
+  { name: "Bronze", value: "#CD7F32" },
+  { name: "Preto", value: "#000000" },
+  { name: "Azul", value: "#0000FF" },
+  { name: "Vermelho", value: "#FF0000" },
+];
 
 export default function ProductDetailPage() {
   const { productId } = useParams<{ productId: string }>();
@@ -61,54 +60,38 @@ export default function ProductDetailPage() {
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const [customName, setCustomName] = useState("");
   const [customModality, setCustomModality] = useState("");
-  const [selectedColor, setSelectedColor] = useState<string>("");
+  const [selectedColor, setSelectedColor] = useState<string>(AVAILABLE_COLORS[0].value);
 
   useEffect(() => {
-    const fetchProductData = async () => {
-      if (!productId) {
-        setLoading(false);
-        toast.error("ID do produto não encontrado.");
-        return;
-      }
+    const fetchProductAndRelated = async () => {
+      setLoading(true);
       try {
-        setLoading(true);
-        console.log(`ProductDetail: Buscando produto com ID: ${productId}`);
-        const foundProduct = await getProductById(productId);
-        console.log("ProductDetail: Produto recebido do serviço:", foundProduct);
+        const foundProduct = await getProductById(productId || ""); // Fetch product by ID
         setProduct(foundProduct);
 
         if (foundProduct) {
+          const related = await getProductsByCategory(foundProduct.category); // Fetch related products
+          // Filter out the current product and take the first 2
+          setRelatedProducts(related.filter(p => p.id !== foundProduct.id).slice(0, 2));
+
+          // Set initial selected color if product has colors and it's the first render
           if (foundProduct.colors && foundProduct.colors.length > 0) {
             setSelectedColor(foundProduct.colors[0]);
-          } else {
-            setSelectedColor("");
           }
-
-          const allProducts = await getAllProducts();
-          const related = (allProducts || [])
-            .filter(p => p.category === foundProduct.category && p.id !== foundProduct.id)
-            .slice(0, 2);
-          setRelatedProducts(related);
         }
       } catch (error) {
-        console.error("ProductDetail: Erro ao buscar dados do produto:", error);
-        toast.error("Não foi possível carregar os detalhes do produto.");
+        console.error("Error fetching product or related products:", error);
+        // Optionally show a toast error
       } finally {
         setLoading(false);
       }
     };
-    fetchProductData();
+
+    if (productId) { // Ensure productId is available before fetching
+      fetchProductAndRelated();
+    }
   }, [productId]);
 
-  useEffect(() => {
-    if (product && product.colors && product.colors.length > 0) {
-      if (!selectedColor || !product.colors.includes(selectedColor)) {
-        setSelectedColor(product.colors[0]);
-      }
-    } else if (product && (!product.colors || product.colors.length === 0)) {
-      setSelectedColor("");
-    }
-  }, [product, selectedColor]);
 
   const handleQuantityChange = (newQuantity: number) => {
     if (newQuantity < 1) return;
@@ -121,14 +104,7 @@ export default function ProductDetailPage() {
 
   const handleAddToCart = () => {
     if (product) {
-      let nameToSend = customName;
-      let modalityToSend = customModality;
-
-      if (!product.allowcustomization) { // Usa product.allowcustomization (minúsculo)
-        nameToSend = "";
-        modalityToSend = "";
-      }
-      addToCart(product, quantity, nameToSend, modalityToSend, selectedColor);
+      addToCart(product, quantity, customName, customModality, selectedColor);
       toast.success(`${quantity} ${quantity > 1 ? 'unidades' : 'unidade'} de ${product.name} adicionadas ao carrinho!`);
     }
   };
@@ -167,39 +143,43 @@ export default function ProductDetailPage() {
   }
 
   const finalPrice = product.discount
-    ? product.price - (product.price * (product.discount || 0) / 100)
+    ? product.price - (product.price * product.discount / 100)
     : product.price;
 
   const stockStatus = product.stock > 0
-    ? product.stock <= 5 ? `Apenas ${product.stock} em estoque` : "Em estoque"
+    ? product.stock <= 5
+      ? `Apenas ${product.stock} em estoque`
+      : "Em estoque"
     : "Fora de estoque";
 
   const stockColor = product.stock > 5
     ? "text-green-600"
-    : product.stock > 0 ? "text-yellow-600" : "text-red-600";
-
-  const displayableColors = (product.colors || []).map(colorValue => {
-    const paletteMatch = UI_COLOR_PALETTE.find(p => p.value.toLowerCase() === colorValue.toLowerCase());
-    return paletteMatch ? paletteMatch : { name: colorValue, value: colorValue };
-  });
+    : product.stock > 0
+      ? "text-yellow-600"
+      : "text-red-600";
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
+
       <main className="flex-1 py-8">
         <div className="container px-4 md:px-6">
           <Link to="/" className="inline-flex items-center text-sm font-medium text-muted-foreground hover:text-foreground mb-4">
             <ArrowLeft className="mr-1 h-4 w-4" />
             Voltar para produtos
           </Link>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+            {/* Product Image */}
             <div className="bg-white rounded-lg overflow-hidden border">
               <img
-                src={product.imageurl || "/placeholder.svg"} // Usa product.imageurl (minúsculo)
+                src={product.imageUrl || "/placeholder.svg"}
                 alt={product.name}
                 className="w-full h-auto object-cover aspect-square"
               />
             </div>
+
+            {/* Product Info */}
             <div className="space-y-6">
               <div>
                 <div className="flex items-center gap-2 mb-1">
@@ -210,7 +190,9 @@ export default function ProductDetailPage() {
                     </span>
                   ) : null}
                 </div>
+
                 <h1 className="text-2xl md:text-3xl font-bold">{product.name}</h1>
+
                 <div className="flex items-center gap-2 mt-2">
                   <div className="flex items-center">
                     <span className={`flex items-center gap-1 text-sm font-medium ${stockColor}`}>
@@ -220,6 +202,7 @@ export default function ProductDetailPage() {
                   </div>
                 </div>
               </div>
+
               <div className="space-y-2">
                 <div className="flex items-end gap-2">
                   {product.discount ? (
@@ -237,42 +220,58 @@ export default function ProductDetailPage() {
                     </span>
                   )}
                 </div>
+
                 <p className="text-sm text-muted-foreground">
                   Em até 12x de R$ {(finalPrice / 12).toFixed(2)} sem juros
                 </p>
               </div>
+
               <Separator />
 
-              {product.allowcustomization && ( // Usa product.allowcustomization (minúsculo)
+              {product.allowCustomization && (
                 <div className="space-y-4">
                   <h3 className="font-medium">Personalização</h3>
                   <div className="space-y-3">
                     <div className="space-y-1">
                       <Label htmlFor="customName">Nome a ser gravado</Label>
-                      <Input id="customName" placeholder="Ex: João Silva" value={customName} onChange={(e) => setCustomName(e.target.value)} />
+                      <Input
+                        id="customName"
+                        placeholder="Ex: João Silva"
+                        value={customName}
+                        onChange={(e) => setCustomName(e.target.value)}
+                      />
                     </div>
                     <div className="space-y-1">
                       <Label htmlFor="customModality">Modalidade</Label>
-                      <Input id="customModality" placeholder="Ex: Atletismo" value={customModality} onChange={(e) => setCustomModality(e.target.value)} />
+                      <Input
+                        id="customModality"
+                        placeholder="Ex: Atletismo"
+                        value={customModality}
+                        onChange={(e) => setCustomModality(e.target.value)}
+                      />
                     </div>
 
-                    {displayableColors.length > 0 && (
+                    {/* Seletor de cores */}
+                    {product.colors && product.colors.length > 0 && (
                       <div className="space-y-2">
                         <Label>Cor</Label>
-                        <div className="flex items-center gap-3 flex-wrap">
-                          {displayableColors.map((color) => (
-                            <button
-                              key={color.value}
-                              className={`w-8 h-8 rounded-full border-2 transition-all
-                                ${selectedColor === color.value ? 'ring-2 ring-offset-2 ring-primary scale-110' : 'border-gray-300 hover:border-gray-500'}
-                                ${color.value === '#FFFFFF' || color.value.toLowerCase() === '#fff' ? 'border-gray-400' : ''}
-                              `}
-                              style={{ backgroundColor: color.value, borderColor: selectedColor === color.value ? 'hsl(var(--primary))' : (color.value === '#000000' ? '#333' : color.value) }}
-                              onClick={() => setSelectedColor(color.value)}
-                              title={color.name}
-                              aria-label={`Selecionar cor ${color.name}`}
-                            />
-                          ))}
+                        <div className="flex items-center gap-3">
+                          {product.colors.map((colorValue) => {
+                            // Find the display name for the color if available, otherwise use the hex value
+                            const colorInfo = AVAILABLE_COLORS.find(c => c.value === colorValue);
+                            const colorName = colorInfo ? colorInfo.name : colorValue;
+
+                            return (
+                              <button
+                                key={colorValue}
+                                className={`w-8 h-8 rounded-full border-2 ${selectedColor === colorValue ? 'border-black ring-2 ring-offset-2 ring-primary' : 'border-gray-300'}`}
+                                style={{ backgroundColor: colorValue, borderColor: colorValue === '#000000' ? '#333' : undefined }}
+                                onClick={() => setSelectedColor(colorValue)}
+                                title={colorName}
+                                aria-label={`Selecionar cor ${colorName}`}
+                              />
+                            );
+                          })}
                         </div>
                       </div>
                     )}
@@ -284,99 +283,211 @@ export default function ProductDetailPage() {
               {product.stock > 0 ? (
                 <div className="space-y-4">
                   <div className="flex items-center gap-2">
-                    <Button variant="outline" size="icon" onClick={() => handleQuantityChange(quantity - 1)} disabled={quantity <= 1}>-</Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => handleQuantityChange(quantity - 1)}
+                      disabled={quantity <= 1}
+                    >
+                      -
+                    </Button>
                     <span className="w-8 text-center">{quantity}</span>
-                    <Button variant="outline" size="icon" onClick={() => handleQuantityChange(quantity + 1)} disabled={quantity >= product.stock}>+</Button>
-                    <span className="text-sm text-muted-foreground ml-2">{product.stock} disponíveis</span>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => handleQuantityChange(quantity + 1)}
+                      disabled={quantity >= product.stock}
+                    >
+                      +
+                    </Button>
+                    <span className="text-sm text-muted-foreground ml-2">
+                      {product.stock} disponíveis
+                    </span>
                   </div>
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <Button className="w-full gap-2" onClick={handleAddToCart}><ShoppingCart className="h-4 w-4" />Adicionar ao Carrinho</Button>
+                    <Button
+                      className="w-full gap-2"
+                      onClick={handleAddToCart}
+                    >
+                      <ShoppingCart className="h-4 w-4" />
+                      Adicionar ao Carrinho
+                    </Button>
+
                     <Link to="/carrinho" className="w-full">
-                      <Button variant="secondary" className="w-full" onClick={handleAddToCart}>Comprar Agora</Button>
+                      <Button
+                        variant="secondary"
+                        className="w-full"
+                        onClick={() => {
+                          handleAddToCart();
+                        }}
+                      >
+                        Comprar Agora
+                      </Button>
                     </Link>
                   </div>
                 </div>
               ) : (
-                <Button disabled className="w-full">Produto Indisponível</Button>
+                <Button disabled className="w-full">
+                  Produto Indisponível
+                </Button>
               )}
 
               <div className="bg-muted/50 rounded-lg p-4 text-sm">
-                 <p className="font-medium">Formas de entrega:</p>
+                <p className="font-medium">Formas de entrega:</p>
                 <ul className="mt-2 space-y-1">
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-600" /><span>Envio para todo Brasil</span></li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-600" /><span>Frete grátis para compras acima de R$300</span></li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-600" /><span>Garantia de 30 dias</span></li>
+                  <li className="flex items-center gap-2">
+                    <Check className="h-4 w-4 text-green-600" />
+                    <span>Envio para todo Brasil</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="h-4 w-4 text-green-600" />
+                    <span>Frete grátis para compras acima de R$300</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="h-4 w-4 text-green-600" />
+                    <span>Garantia de 30 dias</span>
+                  </li>
                 </ul>
               </div>
             </div>
           </div>
 
+          {/* Product Details - Now displayed sequentially without tabs */}
           <div className="space-y-12 mb-12">
+            {/* Descrição */}
             <section>
               <h2 className="text-xl font-bold mb-6 pb-2 border-b">Descrição</h2>
               <div className="text-muted-foreground">
                 <div className="prose max-w-none">
-                  {(product.description || "").split('\n\n').map((paragraph, index) => ( <p key={index} className="mb-4">{paragraph}</p> ))}
-                  {product.descriptionimages && product.descriptionimages.length > 0 && ( // Usa product.descriptionimages (minúsculo)
+                  {product.description.split('\n\n').map((paragraph, index) => (
+                    <p key={index} className="mb-4">{paragraph}</p>
+                  ))}
+
+                  {product.descriptionImages && product.descriptionImages.length > 0 && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-                      {product.descriptionimages.map((img, index) => ( <img key={index} src={img} alt={`${product.name} - imagem de descrição ${index + 1}`} className="rounded-md w-full h-auto object-cover" /> ))}
+                      {product.descriptionImages.map((img, index) => (
+                        <img
+                          key={index}
+                          src={img}
+                          alt={`${product.name} - imagem ${index + 1}`}
+                          className="rounded-md w-full h-auto object-cover"
+                        />
+                      ))}
                     </div>
                   )}
                 </div>
               </div>
             </section>
+
+            {/* Especificações */}
             <section>
               <h2 className="text-xl font-bold mb-6 pb-2 border-b">Especificações</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="bg-muted/50 p-4 rounded-lg">
                   <h4 className="font-medium mb-2">Informações do Produto</h4>
                   <ul className="space-y-2">
-                    <li className="flex justify-between"><span className="text-muted-foreground">Categoria</span><span className="font-medium">{getCategoryLabel(product.category)}</span></li>
-                    <li className="flex justify-between"><span className="text-muted-foreground">Estoque</span><span className="font-medium">{product.stock} unidades</span></li>
-                    <li className="flex justify-between"><span className="text-muted-foreground">Código</span><span className="font-medium">PROD-{product.id.substring(0,8).toUpperCase()}</span></li>
+                    <li className="flex justify-between">
+                      <span className="text-muted-foreground">Categoria</span>
+                      <span className="font-medium">{getCategoryLabel(product.category)}</span>
+                    </li>
+                    <li className="flex justify-between">
+                      <span className="text-muted-foreground">Estoque</span>
+                      <span className="font-medium">{product.stock} unidades</span>
+                    </li>
+                    <li className="flex justify-between">
+                      <span className="text-muted-foreground">Código</span>
+                      <span className="font-medium">PROD-{product.id}</span>
+                    </li>
                   </ul>
                 </div>
+
                 <div className="bg-muted/50 p-4 rounded-lg">
                   <h4 className="font-medium mb-2">Detalhes Adicionais</h4>
                   <ul className="space-y-2">
-                    <li className="flex justify-between"><span className="text-muted-foreground">Material</span><span className="font-medium">{product.category === "porta-medalhas" ? "MDF/Aço" : "Metal/Acrílico"}</span></li>
-                    <li className="flex justify-between"><span className="text-muted-foreground">Garantia</span><span className="font-medium">30 dias</span></li>
-                    <li className="flex justify-between"><span className="text-muted-foreground">Origem</span><span className="font-medium">Brasil</span></li>
+                    <li className="flex justify-between">
+                      <span className="text-muted-foreground">Material</span>
+                      <span className="font-medium">
+                        {product.category === "porta-medalhas" ? "Alumínio" : "Metal banhado"}
+                      </span>
+                    </li>
+                    <li className="flex justify-between">
+                      <span className="text-muted-foreground">Garantia</span>
+                      <span className="font-medium">30 dias</span>
+                    </li>
+                    <li className="flex justify-between">
+                      <span className="text-muted-foreground">Origem</span>
+                      <span className="font-medium">Brasil</span>
+                    </li>
                   </ul>
                 </div>
-                {product.specificationimages && product.specificationimages.length > 0 && ( // Usa product.specificationimages (minúsculo)
+
+                {product.specificationImages && product.specificationImages.length > 0 && (
                   <div className="col-span-1 md:col-span-2 mt-4">
                     <h4 className="font-medium mb-2">Imagens detalhadas</h4>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {product.specificationimages.map((img, index) => ( <img key={index} src={img} alt={`${product.name} - especificação ${index + 1}`} className="rounded-md w-full h-auto object-cover" /> ))}
+                      {product.specificationImages.map((img, index) => (
+                        <img
+                          key={index}
+                          src={img}
+                          alt={`${product.name} - especificação ${index + 1}`}
+                          className="rounded-md w-full h-auto object-cover"
+                        />
+                      ))}
                     </div>
                   </div>
                 )}
               </div>
             </section>
+
+            {/* Entrega */}
             <section>
               <h2 className="text-xl font-bold mb-6 pb-2 border-b">Entrega</h2>
               <div className="space-y-4">
                 <div className="bg-muted/50 p-4 rounded-lg">
                   <h4 className="font-medium mb-2">Informações de Entrega</h4>
                   <ul className="space-y-2">
-                    <li className="flex items-start gap-2"><Check className="h-4 w-4 text-green-600 mt-1 flex-shrink-0" /><span>Envio para todo o Brasil através dos Correios ou transportadoras parceiras.</span></li>
-                    <li className="flex items-start gap-2"><Check className="h-4 w-4 text-green-600 mt-1 flex-shrink-0" /><span>Prazo de envio: 1-3 dias úteis após a confirmação do pagamento.</span></li>
-                    <li className="flex items-start gap-2"><Check className="h-4 w-4 text-green-600 mt-1 flex-shrink-0" /><span>Frete grátis para compras acima de R$300,00 (válido apenas para Sul e Sudeste).</span></li>
+                    <li className="flex items-start gap-2">
+                      <Check className="h-4 w-4 text-green-600 mt-1" />
+                      <span>Envio para todo o Brasil através dos Correios ou transportadoras parceiras.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Check className="h-4 w-4 text-green-600 mt-1" />
+                      <span>Prazo de envio: 1-3 dias úteis após a confirmação do pagamento.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Check className="h-4 w-4 text-green-600 mt-1" />
+                      <span>Frete grátis para compras acima de R$300,00 (válido apenas para Sul e Sudeste).</span>
+                    </li>
                   </ul>
                 </div>
+
                 <div className="bg-muted/50 p-4 rounded-lg">
                   <h4 className="font-medium mb-2">Condições de Troca e Devolução</h4>
                   <ul className="space-y-2">
-                    <li className="flex items-start gap-2"><Check className="h-4 w-4 text-green-600 mt-1 flex-shrink-0" /><span>Você tem até 7 dias após o recebimento para solicitar a troca ou devolução do produto.</span></li>
-                    <li className="flex items-start gap-2"><Check className="h-4 w-4 text-green-600 mt-1 flex-shrink-0" /><span>O produto deve estar em perfeitas condições, na embalagem original e com todos os acessórios.</span></li>
+                    <li className="flex items-start gap-2">
+                      <Check className="h-4 w-4 text-green-600 mt-1" />
+                      <span>Você tem até 7 dias após o recebimento para solicitar a troca ou devolução do produto.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Check className="h-4 w-4 text-green-600 mt-1" />
+                      <span>O produto deve estar em perfeitas condições, na embalagem original e com todos os acessórios.</span>
+                    </li>
                   </ul>
                 </div>
-                {product.deliveryimages && product.deliveryimages.length > 0 && ( // Usa product.deliveryimages (minúsculo)
+
+                {product.deliveryImages && product.deliveryImages.length > 0 && (
                   <div className="mt-4">
                     <h4 className="font-medium mb-2">Imagens de entrega</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {product.deliveryimages.map((img, index) => ( <img key={index} src={img} alt={`${product.name} - entrega ${index + 1}`} className="rounded-md w-full h-auto object-cover" /> ))}
+                      {product.deliveryImages.map((img, index) => (
+                        <img
+                          key={index}
+                          src={img}
+                          alt={`${product.name} - entrega ${index + 1}`}
+                          className="rounded-md w-full h-auto object-cover"
+                        />
+                      ))}
                     </div>
                   </div>
                 )}
@@ -384,26 +495,41 @@ export default function ProductDetailPage() {
             </section>
           </div>
 
+          {/* Related Products */}
           {relatedProducts.length > 0 && (
             <div>
               <h3 className="text-xl font-bold mb-6">Produtos Relacionados</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
                 {relatedProducts.map((relProduct) => (
-                  <Link key={relProduct.id} to={`/produto/${relProduct.id}`} className="group">
-                    <Card className="overflow-hidden hover:shadow-lg transition-shadow duration-300 h-full flex flex-col">
-                      <div className="h-44 bg-muted overflow-hidden">
-                        <img src={relProduct.imageurl || "/placeholder.svg"} alt={relProduct.name} className="h-full w-full object-cover transition-all group-hover:scale-105" />
+                  <Link
+                    key={relProduct.id}
+                    to={`/produto/${relProduct.id}`}
+                    className="group"
+                  >
+                    <Card className="overflow-hidden hover-scale h-full">
+                      <div className="h-44 bg-muted">
+                        <img
+                          src={relProduct.imageUrl || "/placeholder.svg"}
+                          alt={relProduct.name}
+                          className="h-full w-full object-cover transition-all group-hover:scale-105"
+                        />
                       </div>
-                      <div className="p-4 flex flex-col flex-grow">
+                      <div className="p-4">
                         <h4 className="font-medium line-clamp-2">{relProduct.name}</h4>
                         <div className="mt-2">
                           {relProduct.discount ? (
                             <div className="flex flex-col">
-                              <span className="text-muted-foreground line-through text-sm">R$ {relProduct.price.toFixed(2)}</span>
-                              <span className="text-lg font-bold text-primary">R$ {(relProduct.price - (relProduct.price * (relProduct.discount || 0) / 100)).toFixed(2)}</span>
+                              <span className="text-muted-foreground line-through text-sm">
+                                R$ {relProduct.price.toFixed(2)}
+                              </span>
+                              <span className="text-lg font-bold text-primary">
+                                R$ {(relProduct.price - (relProduct.price * relProduct.discount / 100)).toFixed(2)}
+                              </span>
                             </div>
                           ) : (
-                            <span className="text-lg font-bold text-primary">R$ {relProduct.price.toFixed(2)}</span>
+                            <span className="text-lg font-bold text-primary">
+                              R$ {relProduct.price.toFixed(2)}
+                            </span>
                           )}
                         </div>
                       </div>
@@ -415,26 +541,32 @@ export default function ProductDetailPage() {
           )}
         </div>
       </main>
+
       <footer className="bg-sport-dark text-white py-8">
         <div className="container px-4 md:px-6 text-center">
-          <p>&copy; {new Date().getFullYear()} Oficina do Corte. Todos os direitos reservados.</p>
+          <p>&copy; {new Date().getFullYear()} TrophySports. Todos os direitos reservados.</p>
         </div>
       </footer>
     </div>
   );
 }
 
+// Function to get category label - Keep as is
 function getCategoryLabel(category: string): string {
   switch (category) {
-    case "porta-medalhas": return "Porta Medalhas";
-    case "trofeus": return "Troféus";
-    case "medalhas": return "Medalhas";
-    default: return category.charAt(0).toUpperCase() + category.slice(1);
+    case "porta-medalhas":
+      return "Porta Medalhas";
+    case "trofeus":
+    case "trophies": // Added for consistency
+      return "Troféus";
+    case "medalhas":
+      return "Medalhas";
+    default:
+      return category;
   }
 }
 
-interface BadgeProps { category: string; }
-function Badge({ category }: BadgeProps) {
+function Badge({ category }: { category: string }) {
   let icon;
   let label = "";
   let classes = "";
@@ -446,9 +578,10 @@ function Badge({ category }: BadgeProps) {
       classes = "bg-sport-gold/20 text-sport-gold";
       break;
     case "trofeus":
+    case "trophies": // Added for consistency
       icon = <Trophy className="h-3 w-3" />;
       label = "Troféus";
-      classes = "bg-blue-500/20 text-blue-500"; // Ajustado, verifique seu tailwind.config
+      classes = "bg-sport-blue/20 text-sport-blue";
       break;
     default:
       icon = <Medal className="h-3 w-3" />;
