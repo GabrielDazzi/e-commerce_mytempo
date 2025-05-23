@@ -1,7 +1,5 @@
 <?php
 // api/db_config.php
-
-// VERIFIQUE ESTES VALORES COM ATENÇÃO NO SEU ARQUIVO NA HOSTINGER
 define('DB_SERVER', 'localhost'); // Hostinger geralmente usa 'localhost' para scripts no mesmo servidor. Confirme no hPanel.
 define('DB_USERNAME', 'u962773308_mytempo'); // Do seu print do phpMyAdmin/Hostinger.
 define('DB_PASSWORD', 'qebhog-bikfos-5qiTpy'); // ESTA É A SENHA CRÍTICA.
