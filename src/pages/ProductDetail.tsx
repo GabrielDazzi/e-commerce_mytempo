@@ -1,4 +1,3 @@
-// src/pages/ProductDetail.tsx
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Navbar } from "@/components/Navbar";
@@ -8,22 +7,32 @@ import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ShoppingCart, ArrowLeft, Medal, Trophy, Check } from "lucide-react";
-import { Product } from "@/types/Product";
+import { Product, CartItem as CartItemType } from "@/types/Product"; // Importando CartItemType
 import { toast } from "sonner";
-import { getProductById, getProductsByCategory } from "@/services/productsService"; // Import service functions
+import { getProductById, getAllProducts } from "@/services/productsService"; // Importar o serviço
 
-// Remove MOCK_PRODUCTS as it will now come from Supabase
-// const MOCK_PRODUCTS: Product[] = [...];
+// REMOVA OU COMENTE O MOCK_PRODUCTS DESTE ARQUIVO, POIS VAMOS BUSCAR OS DADOS REAIS
+/*
+const MOCK_PRODUCTS: Product[] = [
+  // ... seu mock antigo ...
+];
+*/
 
-const addToCart = (product: Product, quantity: number = 1, customName?: string, customModality?: string, customColor?: string) => {
-  const cartItems = JSON.parse(localStorage.getItem("cart") || "[]");
+const addToCart = (
+  product: Product,
+  quantity: number = 1,
+  customName?: string,
+  customModality?: string,
+  selectedColor?: string // Modificado para customColor para consistência
+) => {
+  const cartItems: CartItemType[] = JSON.parse(localStorage.getItem("cart") || "[]");
 
   const existingItemIndex = cartItems.findIndex(
-    (item: { productId: string; customName?: string; customModality?: string; customColor?: string }) =>
+    (item: CartItemType) => // Usar CartItemType para tipagem correta
       item.productId === product.id &&
       item.customName === customName &&
       item.customModality === customModality &&
-      item.customColor === customColor
+      item.selectedColor === selectedColor // Comparar com item.selectedColor
   );
 
   if (existingItemIndex !== -1) {
@@ -35,15 +44,17 @@ const addToCart = (product: Product, quantity: number = 1, customName?: string, 
       product,
       customName,
       customModality,
-      customColor
+      selectedColor, // Salvar como selectedColor
     });
   }
 
   localStorage.setItem("cart", JSON.stringify(cartItems));
 };
 
-// Array de cores disponíveis
-const AVAILABLE_COLORS = [
+// Array de cores disponíveis - Pode ser substituído pelas cores do produto se desejar
+// ou manter uma lista global e filtrar pelas cores disponíveis no produto.
+// Por enquanto, manteremos esta lista, mas idealmente você usaria product.colors.
+const AVAILABLE_COLORS_PALETTE = [
   { name: "Dourado", value: "#FFD700" },
   { name: "Prata", value: "#C0C0C0" },
   { name: "Bronze", value: "#CD7F32" },
@@ -60,37 +71,65 @@ export default function ProductDetailPage() {
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const [customName, setCustomName] = useState("");
   const [customModality, setCustomModality] = useState("");
-  const [selectedColor, setSelectedColor] = useState<string>(AVAILABLE_COLORS[0].value);
+  // Define a cor inicial baseada nas cores disponíveis do produto, se houver, ou a primeira da paleta
+  const [selectedColor, setSelectedColor] = useState<string>("");
 
   useEffect(() => {
-    const fetchProductAndRelated = async () => {
-      setLoading(true);
+    const fetchProductData = async () => {
+      if (!productId) {
+        setLoading(false);
+        toast.error("ID do produto não encontrado.");
+        return;
+      }
       try {
-        const foundProduct = await getProductById(productId || ""); // Fetch product by ID
+        setLoading(true);
+        const foundProduct = await getProductById(productId);
         setProduct(foundProduct);
 
         if (foundProduct) {
-          const related = await getProductsByCategory(foundProduct.category); // Fetch related products
-          // Filter out the current product and take the first 2
-          setRelatedProducts(related.filter(p => p.id !== foundProduct.id).slice(0, 2));
-
-          // Set initial selected color if product has colors and it's the first render
+          // Define a cor selecionada inicial baseada nas cores do produto
           if (foundProduct.colors && foundProduct.colors.length > 0) {
             setSelectedColor(foundProduct.colors[0]);
+          } else if (AVAILABLE_COLORS_PALETTE.length > 0) {
+             // Fallback para a primeira cor da paleta global se o produto não tiver cores específicas
+            setSelectedColor(AVAILABLE_COLORS_PALETTE[0].value);
           }
+
+
+          // Buscar produtos relacionados da mesma categoria
+          const allProducts = await getAllProducts();
+          const related = allProducts
+            .filter(p => p.category === foundProduct.category && p.id !== foundProduct.id)
+            .slice(0, 2); // Limita a 2 produtos relacionados
+          setRelatedProducts(related);
         }
       } catch (error) {
-        console.error("Error fetching product or related products:", error);
-        // Optionally show a toast error
+        console.error("Erro ao buscar dados do produto:", error);
+        toast.error("Não foi possível carregar os detalhes do produto.");
       } finally {
         setLoading(false);
       }
     };
 
-    if (productId) { // Ensure productId is available before fetching
-      fetchProductAndRelated();
-    }
+    fetchProductData();
   }, [productId]);
+
+  // Atualiza a cor selecionada se o produto mudar e tiver cores
+  useEffect(() => {
+     if (product && product.colors && product.colors.length > 0) {
+         // Se a cor atualmente selecionada não estiver mais nas cores do produto,
+         // ou se nenhuma cor estiver selecionada, defina para a primeira cor do produto.
+         if (!selectedColor || !product.colors.includes(selectedColor)) {
+             setSelectedColor(product.colors[0]);
+         }
+     } else if (product && (!product.colors || product.colors.length === 0) && AVAILABLE_COLORS_PALETTE.length > 0) {
+         // Se o produto não tem cores, mas há uma paleta global, usa a primeira da paleta.
+         // Isso pode ser ajustado conforme a lógica de negócios desejada.
+         if (!selectedColor) { // Apenas define se nenhuma cor estiver selecionada
+             setSelectedColor(AVAILABLE_COLORS_PALETTE[0].value);
+         }
+     }
+  }, [product, selectedColor]);
 
 
   const handleQuantityChange = (newQuantity: number) => {
@@ -104,7 +143,19 @@ export default function ProductDetailPage() {
 
   const handleAddToCart = () => {
     if (product) {
-      addToCart(product, quantity, customName, customModality, selectedColor);
+      // Se a personalização estiver ativa, mas os campos estiverem vazios,
+      // você pode querer avisar o usuário ou não enviar esses campos.
+      let nameToSend = customName;
+      let modalityToSend = customModality;
+
+      if (product.allowcustomization) {
+         // Opcional: validar se customName e customModality são preenchidos se allowCustomization for true
+      } else {
+         nameToSend = ""; // Não envia se não for permitido
+         modalityToSend = ""; // Não envia se não for permitido
+      }
+
+      addToCart(product, quantity, nameToSend, modalityToSend, selectedColor);
       toast.success(`${quantity} ${quantity > 1 ? 'unidades' : 'unidade'} de ${product.name} adicionadas ao carrinho!`);
     }
   };
@@ -158,6 +209,16 @@ export default function ProductDetailPage() {
       ? "text-yellow-600"
       : "text-red-600";
 
+ // Determina quais cores exibir no seletor
+ // Prioriza as cores definidas no produto. Se não houver, usa a paleta global.
+ const productSpecificColors = product.colors && product.colors.length > 0
+     ? product.colors.map(colorValue => {
+         const paletteColor = AVAILABLE_COLORS_PALETTE.find(p => p.value.toLowerCase() === colorValue.toLowerCase());
+         return paletteColor ? paletteColor : { name: colorValue, value: colorValue };
+       })
+     : AVAILABLE_COLORS_PALETTE;
+
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
@@ -173,7 +234,7 @@ export default function ProductDetailPage() {
             {/* Product Image */}
             <div className="bg-white rounded-lg overflow-hidden border">
               <img
-                src={product.imageUrl || "/placeholder.svg"}
+                src={product.imageurl || "/placeholder.svg"} // Alterado para imageurl
                 alt={product.name}
                 className="w-full h-auto object-cover aspect-square"
               />
@@ -228,7 +289,8 @@ export default function ProductDetailPage() {
 
               <Separator />
 
-              {product.allowCustomization && (
+              {/* Verifica product.allowcustomization (minúsculo) */}
+              {product.allowcustomization && (
                 <div className="space-y-4">
                   <h3 className="font-medium">Personalização</h3>
                   <div className="space-y-3">
@@ -251,29 +313,32 @@ export default function ProductDetailPage() {
                       />
                     </div>
 
-                    {/* Seletor de cores */}
-                    {product.colors && product.colors.length > 0 && (
-                      <div className="space-y-2">
-                        <Label>Cor</Label>
-                        <div className="flex items-center gap-3">
-                          {product.colors.map((colorValue) => {
-                            // Find the display name for the color if available, otherwise use the hex value
-                            const colorInfo = AVAILABLE_COLORS.find(c => c.value === colorValue);
-                            const colorName = colorInfo ? colorInfo.name : colorValue;
-
-                            return (
-                              <button
-                                key={colorValue}
-                                className={`w-8 h-8 rounded-full border-2 ${selectedColor === colorValue ? 'border-black ring-2 ring-offset-2 ring-primary' : 'border-gray-300'}`}
-                                style={{ backgroundColor: colorValue, borderColor: colorValue === '#000000' ? '#333' : undefined }}
-                                onClick={() => setSelectedColor(colorValue)}
-                                title={colorName}
-                                aria-label={`Selecionar cor ${colorName}`}
-                              />
-                            );
-                          })}
-                        </div>
-                      </div>
+                    {/* Seletor de cores usando productSpecificColors */}
+                    {productSpecificColors && productSpecificColors.length > 0 && (
+                     <div className="space-y-2">
+                         <Label>Cor</Label>
+                         <div className="flex items-center gap-3 flex-wrap">
+                         {productSpecificColors.map((color) => (
+                             <button
+                             key={color.value}
+                             className={`w-8 h-8 rounded-full border-2 transition-all
+                                         ${selectedColor === color.value
+                                 ? 'ring-2 ring-offset-2 ring-primary scale-110' // Estilo para cor selecionada
+                                 : 'border-gray-300 hover:border-gray-500' // Estilo para cor não selecionada
+                                 }
+                                         ${color.value === '#FFFFFF' || color.value.toLowerCase() === '#fff' ? 'border-gray-400' : ''}
+                                     `}
+                             style={{
+                                 backgroundColor: color.value,
+                                 borderColor: selectedColor === color.value ? 'var(--primary)' : (color.value === '#000000' ? '#333' : undefined)
+                             }}
+                             onClick={() => setSelectedColor(color.value)}
+                             title={color.name}
+                             aria-label={`Selecionar cor ${color.name}`}
+                             />
+                         ))}
+                         </div>
+                     </div>
                     )}
                   </div>
                   <Separator />
@@ -318,8 +383,10 @@ export default function ProductDetailPage() {
                       <Button
                         variant="secondary"
                         className="w-full"
-                        onClick={() => {
-                          handleAddToCart();
+                        onClick={() => { // Adiciona ao carrinho antes de ir para a página
+                          if (product) {
+                            addToCart(product, quantity, customName, customModality, selectedColor);
+                          }
                         }}
                       >
                         Comprar Agora
@@ -360,13 +427,13 @@ export default function ProductDetailPage() {
               <h2 className="text-xl font-bold mb-6 pb-2 border-b">Descrição</h2>
               <div className="text-muted-foreground">
                 <div className="prose max-w-none">
-                  {product.description.split('\n\n').map((paragraph, index) => (
+                  {(product.description || "").split('\n\n').map((paragraph, index) => (
                     <p key={index} className="mb-4">{paragraph}</p>
                   ))}
 
-                  {product.descriptionImages && product.descriptionImages.length > 0 && (
+                  {product.descriptionimages && product.descriptionimages.length > 0 && ( // Usa descriptionimages (minúsculo)
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-                      {product.descriptionImages.map((img, index) => (
+                      {product.descriptionimages.map((img, index) => (
                         <img
                           key={index}
                           src={img}
@@ -381,140 +448,140 @@ export default function ProductDetailPage() {
             </section>
 
             {/* Especificações */}
-            <section>
-              <h2 className="text-xl font-bold mb-6 pb-2 border-b">Especificações</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-muted/50 p-4 rounded-lg">
-                  <h4 className="font-medium mb-2">Informações do Produto</h4>
-                  <ul className="space-y-2">
-                    <li className="flex justify-between">
-                      <span className="text-muted-foreground">Categoria</span>
-                      <span className="font-medium">{getCategoryLabel(product.category)}</span>
-                    </li>
-                    <li className="flex justify-between">
-                      <span className="text-muted-foreground">Estoque</span>
-                      <span className="font-medium">{product.stock} unidades</span>
-                    </li>
-                    <li className="flex justify-between">
-                      <span className="text-muted-foreground">Código</span>
-                      <span className="font-medium">PROD-{product.id}</span>
-                    </li>
-                  </ul>
-                </div>
+           <section>
+             <h2 className="text-xl font-bold mb-6 pb-2 border-b">Especificações</h2>
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                 <div className="bg-muted/50 p-4 rounded-lg">
+                 <h4 className="font-medium mb-2">Informações do Produto</h4>
+                 <ul className="space-y-2">
+                     <li className="flex justify-between">
+                     <span className="text-muted-foreground">Categoria</span>
+                     <span className="font-medium">{getCategoryLabel(product.category)}</span>
+                     </li>
+                     <li className="flex justify-between">
+                     <span className="text-muted-foreground">Estoque</span>
+                     <span className="font-medium">{product.stock} unidades</span>
+                     </li>
+                     <li className="flex justify-between">
+                     <span className="text-muted-foreground">Código</span>
+                     <span className="font-medium">PROD-{product.id.substring(0,8).toUpperCase()}</span>
+                     </li>
+                 </ul>
+                 </div>
 
-                <div className="bg-muted/50 p-4 rounded-lg">
-                  <h4 className="font-medium mb-2">Detalhes Adicionais</h4>
-                  <ul className="space-y-2">
-                    <li className="flex justify-between">
-                      <span className="text-muted-foreground">Material</span>
-                      <span className="font-medium">
-                        {product.category === "porta-medalhas" ? "Alumínio" : "Metal banhado"}
-                      </span>
-                    </li>
-                    <li className="flex justify-between">
-                      <span className="text-muted-foreground">Garantia</span>
-                      <span className="font-medium">30 dias</span>
-                    </li>
-                    <li className="flex justify-between">
-                      <span className="text-muted-foreground">Origem</span>
-                      <span className="font-medium">Brasil</span>
-                    </li>
-                  </ul>
-                </div>
+                 <div className="bg-muted/50 p-4 rounded-lg">
+                 <h4 className="font-medium mb-2">Detalhes Adicionais</h4>
+                 <ul className="space-y-2">
+                     <li className="flex justify-between">
+                     <span className="text-muted-foreground">Material</span>
+                     <span className="font-medium">
+                         {product.category === "porta-medalhas" ? "MDF/Aço" : "Metal/Acrílico"}
+                     </span>
+                     </li>
+                     <li className="flex justify-between">
+                     <span className="text-muted-foreground">Garantia</span>
+                     <span className="font-medium">30 dias</span>
+                     </li>
+                     <li className="flex justify-between">
+                     <span className="text-muted-foreground">Origem</span>
+                     <span className="font-medium">Brasil</span>
+                     </li>
+                 </ul>
+                 </div>
 
-                {product.specificationImages && product.specificationImages.length > 0 && (
-                  <div className="col-span-1 md:col-span-2 mt-4">
-                    <h4 className="font-medium mb-2">Imagens detalhadas</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {product.specificationImages.map((img, index) => (
-                        <img
-                          key={index}
-                          src={img}
-                          alt={`${product.name} - especificação ${index + 1}`}
-                          className="rounded-md w-full h-auto object-cover"
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </section>
+                 {product.specificationimages && product.specificationimages.length > 0 && ( // Usa specificationimages (minúsculo)
+                 <div className="col-span-1 md:col-span-2 mt-4">
+                     <h4 className="font-medium mb-2">Imagens detalhadas</h4>
+                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                     {product.specificationimages.map((img, index) => (
+                         <img
+                         key={index}
+                         src={img}
+                         alt={`${product.name} - especificação ${index + 1}`}
+                         className="rounded-md w-full h-auto object-cover"
+                         />
+                     ))}
+                     </div>
+                 </div>
+                 )}
+             </div>
+           </section>
 
-            {/* Entrega */}
-            <section>
-              <h2 className="text-xl font-bold mb-6 pb-2 border-b">Entrega</h2>
-              <div className="space-y-4">
-                <div className="bg-muted/50 p-4 rounded-lg">
-                  <h4 className="font-medium mb-2">Informações de Entrega</h4>
-                  <ul className="space-y-2">
-                    <li className="flex items-start gap-2">
-                      <Check className="h-4 w-4 text-green-600 mt-1" />
-                      <span>Envio para todo o Brasil através dos Correios ou transportadoras parceiras.</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <Check className="h-4 w-4 text-green-600 mt-1" />
-                      <span>Prazo de envio: 1-3 dias úteis após a confirmação do pagamento.</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <Check className="h-4 w-4 text-green-600 mt-1" />
-                      <span>Frete grátis para compras acima de R$300,00 (válido apenas para Sul e Sudeste).</span>
-                    </li>
-                  </ul>
-                </div>
+         {/* Entrega */}
+         <section>
+           <h2 className="text-xl font-bold mb-6 pb-2 border-b">Entrega</h2>
+           <div className="space-y-4">
+             <div className="bg-muted/50 p-4 rounded-lg">
+               <h4 className="font-medium mb-2">Informações de Entrega</h4>
+               <ul className="space-y-2">
+                 <li className="flex items-start gap-2">
+                   <Check className="h-4 w-4 text-green-600 mt-1 flex-shrink-0" />
+                   <span>Envio para todo o Brasil através dos Correios ou transportadoras parceiras.</span>
+                 </li>
+                 <li className="flex items-start gap-2">
+                   <Check className="h-4 w-4 text-green-600 mt-1 flex-shrink-0" />
+                   <span>Prazo de envio: 1-3 dias úteis após a confirmação do pagamento.</span>
+                 </li>
+                 <li className="flex items-start gap-2">
+                   <Check className="h-4 w-4 text-green-600 mt-1 flex-shrink-0" />
+                   <span>Frete grátis para compras acima de R$300,00 (válido apenas para Sul e Sudeste).</span>
+                 </li>
+               </ul>
+             </div>
 
-                <div className="bg-muted/50 p-4 rounded-lg">
-                  <h4 className="font-medium mb-2">Condições de Troca e Devolução</h4>
-                  <ul className="space-y-2">
-                    <li className="flex items-start gap-2">
-                      <Check className="h-4 w-4 text-green-600 mt-1" />
-                      <span>Você tem até 7 dias após o recebimento para solicitar a troca ou devolução do produto.</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <Check className="h-4 w-4 text-green-600 mt-1" />
-                      <span>O produto deve estar em perfeitas condições, na embalagem original e com todos os acessórios.</span>
-                    </li>
-                  </ul>
-                </div>
+             <div className="bg-muted/50 p-4 rounded-lg">
+               <h4 className="font-medium mb-2">Condições de Troca e Devolução</h4>
+               <ul className="space-y-2">
+                 <li className="flex items-start gap-2">
+                   <Check className="h-4 w-4 text-green-600 mt-1 flex-shrink-0" />
+                   <span>Você tem até 7 dias após o recebimento para solicitar a troca ou devolução do produto.</span>
+                 </li>
+                 <li className="flex items-start gap-2">
+                   <Check className="h-4 w-4 text-green-600 mt-1 flex-shrink-0" />
+                   <span>O produto deve estar em perfeitas condições, na embalagem original e com todos os acessórios.</span>
+                 </li>
+               </ul>
+             </div>
 
-                {product.deliveryImages && product.deliveryImages.length > 0 && (
-                  <div className="mt-4">
-                    <h4 className="font-medium mb-2">Imagens de entrega</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {product.deliveryImages.map((img, index) => (
-                        <img
-                          key={index}
-                          src={img}
-                          alt={`${product.name} - entrega ${index + 1}`}
-                          className="rounded-md w-full h-auto object-cover"
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </section>
+             {product.deliveryimages && product.deliveryimages.length > 0 && ( // Usa deliveryimages (minúsculo)
+               <div className="mt-4">
+                 <h4 className="font-medium mb-2">Imagens de entrega</h4>
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                   {product.deliveryimages.map((img, index) => (
+                     <img
+                       key={index}
+                       src={img}
+                       alt={`${product.name} - entrega ${index + 1}`}
+                       className="rounded-md w-full h-auto object-cover"
+                     />
+                   ))}
+                 </div>
+               </div>
+             )}
+           </div>
+         </section>
           </div>
 
           {/* Related Products */}
           {relatedProducts.length > 0 && (
             <div>
               <h3 className="text-xl font-bold mb-6">Produtos Relacionados</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-2 gap-6"> {/* Ajustado para 2 colunas em telas maiores */}
                 {relatedProducts.map((relProduct) => (
                   <Link
                     key={relProduct.id}
                     to={`/produto/${relProduct.id}`}
                     className="group"
                   >
-                    <Card className="overflow-hidden hover-scale h-full">
-                      <div className="h-44 bg-muted">
+                    <Card className="overflow-hidden hover:shadow-lg transition-shadow duration-300 h-full flex flex-col">
+                      <div className="h-44 bg-muted overflow-hidden">
                         <img
-                          src={relProduct.imageUrl || "/placeholder.svg"}
+                          src={relProduct.imageurl || "/placeholder.svg"} // Alterado para imageurl
                           alt={relProduct.name}
                           className="h-full w-full object-cover transition-all group-hover:scale-105"
                         />
                       </div>
-                      <div className="p-4">
+                      <div className="p-4 flex flex-col flex-grow">
                         <h4 className="font-medium line-clamp-2">{relProduct.name}</h4>
                         <div className="mt-2">
                           {relProduct.discount ? (
@@ -523,7 +590,7 @@ export default function ProductDetailPage() {
                                 R$ {relProduct.price.toFixed(2)}
                               </span>
                               <span className="text-lg font-bold text-primary">
-                                R$ {(relProduct.price - (relProduct.price * relProduct.discount / 100)).toFixed(2)}
+                                R$ {(relProduct.price - (relProduct.price * (relProduct.discount || 0) / 100)).toFixed(2)}
                               </span>
                             </div>
                           ) : (
@@ -544,29 +611,31 @@ export default function ProductDetailPage() {
 
       <footer className="bg-sport-dark text-white py-8">
         <div className="container px-4 md:px-6 text-center">
-          <p>&copy; {new Date().getFullYear()} TrophySports. Todos os direitos reservados.</p>
+          <p>&copy; {new Date().getFullYear()} Oficina do Corte. Todos os direitos reservados.</p>
         </div>
       </footer>
     </div>
   );
 }
 
-// Function to get category label - Keep as is
 function getCategoryLabel(category: string): string {
   switch (category) {
     case "porta-medalhas":
       return "Porta Medalhas";
     case "trofeus":
-    case "trophies": // Added for consistency
       return "Troféus";
     case "medalhas":
       return "Medalhas";
     default:
-      return category;
+      return category.charAt(0).toUpperCase() + category.slice(1);
   }
 }
 
-function Badge({ category }: { category: string }) {
+interface BadgeProps {
+ category: string;
+}
+
+function Badge({ category }: BadgeProps) {
   let icon;
   let label = "";
   let classes = "";
@@ -575,18 +644,22 @@ function Badge({ category }: { category: string }) {
     case "porta-medalhas":
       icon = <Medal className="h-3 w-3" />;
       label = "Porta Medalhas";
-      classes = "bg-sport-gold/20 text-sport-gold";
+      classes = "bg-yellow-100 text-yellow-700"; // Exemplo de cor
       break;
     case "trofeus":
-    case "trophies": // Added for consistency
       icon = <Trophy className="h-3 w-3" />;
       label = "Troféus";
-      classes = "bg-sport-blue/20 text-sport-blue";
+      classes = "bg-blue-100 text-blue-700"; // Exemplo de cor
+      break;
+    case "medalhas":
+      icon = <Medal className="h-3 w-3" />; // Pode usar outro ícone se desejar
+      label = "Medalhas";
+      classes = "bg-green-100 text-green-700"; // Exemplo de cor
       break;
     default:
-      icon = <Medal className="h-3 w-3" />;
+      icon = <Check className="h-3 w-3" />; // Ícone genérico
       label = getCategoryLabel(category);
-      classes = "bg-muted text-muted-foreground";
+      classes = "bg-gray-100 text-gray-700";
   }
 
   return (
