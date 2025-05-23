@@ -1,59 +1,71 @@
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
-import { Product, ProductFormData } from '@/types/Product';
+import { Product, ProductFormData, DEFAULT_PRODUCT_COLORS } from '@/types/Product'; // DEFAULT_PRODUCT_COLORS não é usado aqui, mas pode ser mantido se necessário em outro local.
 
 const PRODUCTS_TABLE = 'products';
 
-const parseDate = (dateString: string | null): Date => {
-  return dateString ? new Date(dateString) : new Date();
+// Helper para converter string de data para objeto Date, tratando nulos.
+const parseDate = (dateString: string | null | undefined): Date => {
+  if (!dateString) return new Date(); // Retorna data atual se a string for nula/undefined
+  const date = new Date(dateString);
+  return isNaN(date.getTime()) ? new Date() : date; // Retorna data atual se a string for inválida
 };
 
 // Formata o produto ANTES de enviar para o DB
-const formatProductForDB = (product: ProductFormData | Product): any => { // Retorna 'any' para flexibilidade, mas será estruturado
-  let createdatISO: string;
+const formatProductForDB = (product: ProductFormData | Product): any => {
+  let createdAtISO: string;
 
-  if (product.createdat instanceof Date) {
-    createdatISO = product.createdat.toISOString();
-  } else if (typeof product.createdat === 'string' && product.createdat) {
+  // Usa product.createdAt (camelCase)
+  if (product.createdAt instanceof Date) {
+    createdAtISO = product.createdAt.toISOString();
+  } else if (typeof product.createdAt === 'string' && product.createdAt) {
     try {
-      createdatISO = new Date(product.createdat).toISOString();
+      createdAtISO = new Date(product.createdAt).toISOString();
     } catch (e) {
-      console.warn('Invalid createdat string, using current date:', product.createdat);
-      createdatISO = new Date().toISOString();
+      console.warn('Invalid createdAt string, using current date:', product.createdAt);
+      createdAtISO = new Date().toISOString();
     }
   } else {
-    createdatISO = new Date().toISOString();
+    // Se createdAt não for fornecido ou for undefined, e for um novo produto,
+    // o Supabase pode preencher com DEFAULT NOW() se a coluna estiver configurada assim.
+    // Se for uma atualização e você não quer mudar, não inclua o campo.
+    // Para garantir que sempre haja um valor ao criar:
+    createdAtISO = new Date().toISOString();
   }
 
-  // Objeto a ser enviado para o Supabase.
-  // O cliente Supabase (supabase-js) tentará mapear chaves camelCase do JS
-  // para colunas snake_case ou lowercase no PostgreSQL.
-  // Ex: JS `imageUrl` -> DB `imageurl` ou `image_url`.
-  // Para evitar ambiguidades com o erro do schema_cache, vamos ser explícitos
-  // e usar chaves minúsculas aqui se as colunas do DB forem minúsculas.
   const dataForSupabase: any = {
     name: product.name,
     description: product.description,
     price: Number(product.price),
     category: product.category,
     stock: Number(product.stock),
-    createdat: createdatISO, // Coluna do DB é 'createdat'
-    // Campos opcionais: só incluir se tiverem valor
-    ...(product.imageurl && { imageurl: product.imageurl }), // Coluna do DB é 'imageurl'
-    ...(product.featured !== undefined && { featured: product.featured }),
-    ...(product.discount !== undefined && { discount: Number(product.discount || 0) }),
-    ...(product.descriptionimages && { descriptionimages: product.descriptionimages }), // Coluna 'descriptionimages'
-    ...(product.specificationimages && { specificationimages: product.specificationimages }), // Coluna 'specificationimages'
-    ...(product.deliveryimages && { deliveryimages: product.deliveryimages }), // Coluna 'deliveryimages'
-    ...(product.allowcustomization !== undefined && { allowcustomization: product.allowcustomization }), // Coluna 'allowcustomization'
-    ...(product.colors && { colors: product.colors }),
+    // Somente enviar 'createdat' se for relevante para a operação (ex: INSERT com valor específico)
+    // Se a coluna tem DEFAULT NOW() e é um INSERT, pode-se omitir 'createdat'.
+    // Para UPDATE, geralmente não se atualiza 'createdat'.
+    // Vamos assumir que para INSERT/UPDATE ele é fornecido pelo formulário ou é a data atual.
+    createdat: createdAtISO, // Coluna do DB é 'createdat' (minúsculo)
+
+    // Campos opcionais: usar nomes camelCase do tipo Product
+    imageurl: product.imageUrl, // Mapeia product.imageUrl para a coluna 'imageurl'
+    featured: product.featured,
+    discount: Number(product.discount || 0),
+    descriptionimages: product.descriptionImages, // Mapeia product.descriptionImages para 'descriptionimages'
+    specificationimages: product.specificationImages, // Mapeia product.specificationImages para 'specificationimages'
+    deliveryimages: product.deliveryImages, // Mapeia product.deliveryImages para 'deliveryimages'
+    allowcustomization: product.allowCustomization, // Mapeia product.allowCustomization para 'allowcustomization'
+    colors: product.colors,
   };
 
-  // Remove chaves com valor undefined do objeto final
+  // Remove chaves com valor undefined do objeto final para não sobrescrever com null no DB
   Object.keys(dataForSupabase).forEach(key => {
     if (dataForSupabase[key] === undefined) {
       delete dataForSupabase[key];
     }
   });
+  // Se 'createdat' não deve ser atualizado em updates, remova-o de dataForSupabase se product.id existir.
+  if ('id' in product && product.id) { // Se é um objeto Product (tem id), é uma atualização
+     delete dataForSupabase.createdat; // Não atualiza createdat em updates
+  }
+
 
   return dataForSupabase;
 };
@@ -68,20 +80,21 @@ const formatProductFromDB = (dbProduct: any): Product => {
     description: dbProduct.description,
     price: isNaN(Number(dbProduct.price)) ? 0 : Number(dbProduct.price),
     category: dbProduct.category,
-    imageUrl: dbProduct.imageurl, // Mapeia 'imageurl' do DB para 'imageUrl' no tipo Product (ou manter 'imageurl' no tipo Product)
+    imageUrl: dbProduct.imageurl, // Mapeia 'imageurl' do DB para 'imageUrl' (camelCase)
     stock: isNaN(Number(dbProduct.stock)) ? 0 : Number(dbProduct.stock),
     featured: dbProduct.featured || false,
     discount: isNaN(Number(dbProduct.discount)) ? 0 : Number(dbProduct.discount || 0),
-    createdat: parseDate(dbProduct.createdat), // Lê 'createdat' do DB
-    descriptionImages: dbProduct.descriptionimages || [], // Mapeia 'descriptionimages'
-    specificationImages: dbProduct.specificationimages || [], // Mapeia 'specificationimages'
-    deliveryImages: dbProduct.deliveryimages || [], // Mapeia 'deliveryimages'
-    allowCustomization: dbProduct.allowcustomization || false, // Mapeia 'allowcustomization'
+    createdAt: parseDate(dbProduct.createdat), // Mapeia 'createdat' para 'createdAt' (camelCase)
+    descriptionImages: dbProduct.descriptionimages || [], // Mapeia 'descriptionimages' para 'descriptionImages'
+    specificationImages: dbProduct.specificationimages || [], // Mapeia 'specificationimages' para 'specificationImages'
+    deliveryImages: dbProduct.deliveryimages || [], // Mapeia 'deliveryimages' para 'deliveryImages'
+    allowCustomization: dbProduct.allowcustomization || false, // Mapeia 'allowcustomization' para 'allowCustomization'
     colors: dbProduct.colors || [],
-    // selectedColor não vem do DB
+    // selectedColor não vem do DB, é gerenciado no frontend
   };
 };
 
+// Mock data para desenvolvimento sem Supabase, agora usando os nomes camelCase corretos
 const mockProducts: Product[] = [
     {
         id: '1',
@@ -89,15 +102,15 @@ const mockProducts: Product[] = [
         description: 'Troféu de ouro para premiações esportivas (mock)',
         price: 129.99,
         category: 'trofeus',
-        imageurl: '/placeholder.svg', // Usando minúsculo conforme tipo Product
+        imageUrl: '/placeholder.svg', // camelCase
         stock: 15,
         featured: true,
         discount: 10,
-        createdat: new Date(),
-        descriptionimages: [], // Usando minúsculo
-        specificationimages: [], // Usando minúsculo
-        deliveryimages: [], // Usando minúsculo
-        allowcustomization: true, // Usando minúsculo
+        createdAt: new Date(), // camelCase
+        descriptionImages: [], // camelCase
+        specificationImages: [], // camelCase
+        deliveryImages: [], // camelCase
+        allowCustomization: true, // camelCase
         colors: ['gold', 'silver']
       },
       {
@@ -106,15 +119,15 @@ const mockProducts: Product[] = [
         description: 'Porta medalhas personalizável (mock)',
         price: 89.99,
         category: 'porta-medalhas',
-        imageurl: '/placeholder.svg', // Usando minúsculo
+        imageUrl: '/placeholder.svg', // camelCase
         stock: 8,
         featured: false,
         discount: 0,
-        createdat: new Date(),
-        descriptionimages: [], // Usando minúsculo
-        specificationimages: [], // Usando minúsculo
-        deliveryimages: [], // Usando minúsculo
-        allowcustomization: true, // Usando minúsculo
+        createdAt: new Date(), // camelCase
+        descriptionImages: [], // camelCase
+        specificationImages: [], // camelCase
+        deliveryImages: [], // camelCase
+        allowCustomization: true, // camelCase
         colors: ['black', 'white']
       }
 ];
@@ -123,14 +136,14 @@ export const getAllProducts = async (): Promise<Product[]> => {
   console.log("productsService: getAllProducts iniciado");
   if (!isSupabaseConfigured()) {
     console.log('productsService: Usando mock data para getAllProducts');
-    return Promise.resolve([...mockProducts]); // Mock já está no formato Product
+    return Promise.resolve([...mockProducts]);
   }
 
   try {
     const { data, error } = await supabase
       .from(PRODUCTS_TABLE)
-      .select('*') // Seleciona todas as colunas, o mapeamento é feito em formatProductFromDB
-      .order('createdat', { ascending: false }); // Ordena pela coluna 'createdat' do banco
+      .select('*')
+      .order('createdat', { ascending: false }); // Coluna do DB é 'createdat'
 
     if (error) {
       console.error('productsService: Erro ao buscar produtos no Supabase:', error);
@@ -164,7 +177,7 @@ export const getProductById = async (id: string): Promise<Product | null> => {
 
     if (error) {
       console.error(`productsService: Erro ao buscar produto por ID (${id}) no Supabase:`, error);
-      if (error.code === 'PGRST116') return null;
+      if (error.code === 'PGRST116') return null; // 'PGRST116' é " relazione con nome “...” non esiste " ou "0 rows"
       throw error;
     }
     console.log(`productsService: Produto por ID (${id}) buscado do Supabase (raw):`, data);
@@ -182,27 +195,33 @@ export const createProduct = async (productFormData: ProductFormData): Promise<P
     console.log("productsService: createProduct iniciado com (recebido do form):", JSON.stringify(productFormData, null, 2));
     if (!isSupabaseConfigured()) {
         console.log("productsService: Usando mock data para criar produto");
-        const newProduct: Product = { // Tipagem explícita para Product
+        const newProduct: Product = {
             id: `mock-${Date.now()}`,
             name: productFormData.name,
             description: productFormData.description,
             price: Number(productFormData.price),
             category: productFormData.category,
-            imageurl: productFormData.imageurl || '',
+            imageUrl: productFormData.imageUrl || '',
             stock: Number(productFormData.stock),
             featured: productFormData.featured || false,
             discount: Number(productFormData.discount || 0),
-            createdat: productFormData.createdat || new Date(),
-            descriptionimages: productFormData.descriptionimages || [],
-            specificationimages: productFormData.specificationimages || [],
-            deliveryimages: productFormData.deliveryimages || [],
-            allowcustomization: productFormData.allowcustomization || false,
+            createdAt: productFormData.createdAt || new Date(), // Usa o createdAt do form ou data atual
+            descriptionImages: productFormData.descriptionImages || [],
+            specificationImages: productFormData.specificationImages || [],
+            deliveryImages: productFormData.deliveryImages || [],
+            allowCustomization: productFormData.allowCustomization || false,
             colors: productFormData.colors || [],
         };
+        mockProducts.push(newProduct); // Adiciona ao mock para consistência
         return Promise.resolve(newProduct);
     }
 
     const finalProductDataForDB = formatProductForDB(productFormData);
+    // Certifique-se de que 'createdat' seja definido se não for default no DB
+    if (!finalProductDataForDB.createdat) {
+        finalProductDataForDB.createdat = new Date().toISOString();
+    }
+
 
     console.log("productsService: Enviando para o Supabase (createProduct - finalProductDataForDB):", JSON.stringify(finalProductDataForDB, null, 2));
 
@@ -236,18 +255,34 @@ export const updateProduct = async (id: string, productFormData: ProductFormData
     const index = mockProducts.findIndex(p => p.id === id);
     if (index >= 0) {
         const updatedMockProduct: Product = {
-            ...mockProducts[index], // Pega o estado atual do mock
-            ...productFormData,     // Sobrescreve com os dados do formulário
-            createdat: productFormData.createdat || mockProducts[index].createdat, // Mantém ou atualiza createdat
+            ...mockProducts[index],
+            ...productFormData,
+            // Mantém o createdAt original se não for explicitamente passado no formulário de update
+            createdAt: productFormData.createdAt || mockProducts[index].createdAt,
+             // Garante que todos os campos opcionais do ProductFormData sejam aplicados
+            imageUrl: productFormData.imageUrl !== undefined ? productFormData.imageUrl : mockProducts[index].imageUrl,
+            featured: productFormData.featured !== undefined ? productFormData.featured : mockProducts[index].featured,
+            discount: productFormData.discount !== undefined ? Number(productFormData.discount || 0) : mockProducts[index].discount,
+            descriptionImages: productFormData.descriptionImages !== undefined ? productFormData.descriptionImages : mockProducts[index].descriptionImages,
+            specificationImages: productFormData.specificationImages !== undefined ? productFormData.specificationImages : mockProducts[index].specificationImages,
+            deliveryImages: productFormData.deliveryImages !== undefined ? productFormData.deliveryImages : mockProducts[index].deliveryImages,
+            allowCustomization: productFormData.allowCustomization !== undefined ? productFormData.allowCustomization : mockProducts[index].allowCustomization,
+            colors: productFormData.colors !== undefined ? productFormData.colors : mockProducts[index].colors,
         };
-        mockProducts[index] = updatedMockProduct; // Atualiza o array de mocks
+        mockProducts[index] = updatedMockProduct;
         console.log(`productsService: Mock data atualizado para produto (ID: ${id}):`, updatedMockProduct);
         return Promise.resolve(updatedMockProduct);
     }
     throw new Error('Produto mock não encontrado para atualização');
   }
 
-  const finalProductDataForDB = formatProductForDB(productFormData);
+  // Remove 'createdAt' para não tentar atualizá-lo no banco, a menos que seja uma intenção.
+  // O Supabase geralmente não permite update em colunas com DEFAULT e ON UPDATE.
+  const { createdAt, ...restOfProductFormData } = productFormData;
+  const finalProductDataForDB = formatProductForDB(restOfProductFormData as ProductFormData); // Passar sem createdAt
+   // Se você precisar definir explicitamente quais campos não devem ser atualizados:
+  delete finalProductDataForDB.createdat; // Garante que não estamos tentando atualizar 'createdat'
+
   console.log(`productsService: formattedProduct para Supabase (Update ID: ${id}):`, JSON.stringify(finalProductDataForDB, null, 2));
 
   try {
@@ -272,11 +307,13 @@ export const updateProduct = async (id: string, productFormData: ProductFormData
   }
 };
 
+// As funções deleteProduct, searchProducts, getProductsByCategory, getFeaturedProducts permanecem as mesmas
+// pois a formatação principal ocorre em formatProductFromDB que já foi ajustada.
+
 export const deleteProduct = async (id: string): Promise<void> => {
   console.log(`productsService: deleteProduct (ID: ${id}) iniciado`);
   if (!isSupabaseConfigured()) {
     const initialLength = mockProducts.length;
-    // mockProducts = mockProducts.filter(p => p.id !== id); // Recriar array se mockProducts for const
     const index = mockProducts.findIndex(p => p.id === id);
     if (index > -1) {
         mockProducts.splice(index, 1);
