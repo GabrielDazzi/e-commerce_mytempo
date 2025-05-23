@@ -1,9 +1,12 @@
 // src/services/productsService.ts
-import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { Product, ProductFormData, SpecificationItem } from '@/types/Product';
 
-const PRODUCTS_TABLE = 'products';
+// Defina VITE_API_BASE_URL no seu arquivo .env na raiz do projeto frontend
+// Ex: VITE_API_BASE_URL=http://localhost:3001/api (para desenvolvimento)
+// Em produção, será a URL da sua API deployada.
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/products'; // O '/api/products' já é o prefixo das rotas
 
+// Função para parsear datas (pode ser mantida como está)
 const parseDate = (dateInput: string | Date | undefined | null): Date => {
   if (dateInput instanceof Date) {
       return dateInput;
@@ -17,306 +20,196 @@ const parseDate = (dateInput: string | Date | undefined | null): Date => {
     return new Date();
   };
 
-  const formatProductForDB = (product: ProductFormData | Product): any => {
-    let createdAtISO: string;
+// Função para formatar dados vindos da API para o tipo Product do frontend
+const formatProductFromAPI = (apiProduct: any): Product => {
+    // A API Node.js/Express pode retornar snake_case, então convertemos para camelCase
+    // e fazemos o parse de campos JSON que podem vir como string.
+    return {
+        id: apiProduct.id,
+        name: apiProduct.name,
+        description: apiProduct.description,
+        price: parseFloat(apiProduct.price),
+        category: apiProduct.category,
+        imageUrl: apiProduct.image_url || apiProduct.imageUrl, // Considerar ambos os cases
+        stock: parseInt(apiProduct.stock, 10),
+        featured: Boolean(apiProduct.featured),
+        discount: parseInt(apiProduct.discount || 0, 10),
+        createdAt: parseDate(apiProduct.created_at || apiProduct.createdAt),
+        descriptionImages: Array.isArray(apiProduct.description_images) ? apiProduct.description_images : (typeof apiProduct.description_images === 'string' ? JSON.parse(apiProduct.description_images || '[]') : []),
+        specificationImages: Array.isArray(apiProduct.specification_images) ? apiProduct.specification_images : (typeof apiProduct.specification_images === 'string' ? JSON.parse(apiProduct.specification_images || '[]') : []),
+        deliveryImages: Array.isArray(apiProduct.delivery_images) ? apiProduct.delivery_images : (typeof apiProduct.delivery_images === 'string' ? JSON.parse(apiProduct.delivery_images || '[]') : []),
+        allowCustomization: Boolean(apiProduct.allow_customization || apiProduct.allowCustomization),
+        allowCustomName: Boolean(apiProduct.allowcustomname || apiProduct.allowCustomName),
+        allowCustomModality: Boolean(apiProduct.allowcustommodality || apiProduct.allowCustomModality),
+        allowCustomColorSelection: Boolean(apiProduct.allowcustomcolorselection || apiProduct.allowCustomColorSelection),
+        colors: Array.isArray(apiProduct.colors) ? apiProduct.colors : (typeof apiProduct.colors === 'string' ? JSON.parse(apiProduct.colors || '[]') : []),
+        specifications: Array.isArray(apiProduct.specifications) ? apiProduct.specifications : (typeof apiProduct.specifications === 'string' ? JSON.parse(apiProduct.specifications || '[]') : []),
+    };
+};
+
+// Função para formatar dados do frontend para enviar para a API Node.js/Express
+const formatProductForAPI = (product: ProductFormData | Product): any => {
+    // Converte para snake_case se sua API espera esse formato e serializa JSON
+    const dataForAPI: any = {
+        name: product.name,
+        description: product.description,
+        price: Number(product.price),
+        category: product.category,
+        stock: Number(product.stock),
+        image_url: product.imageUrl, // Exemplo: snake_case
+        featured: product.featured,
+        discount: Number(product.discount || 0),
+        description_images: JSON.stringify(product.descriptionImages || []),
+        specification_images: JSON.stringify(product.specificationImages || []),
+        delivery_images: JSON.stringify(product.deliveryImages || []),
+        allow_customization: product.allowCustomization, // snake_case
+        allowcustomname: product.allowCustomName, // Mantém camelCase se a API/BD usar assim
+        allowcustommodality: product.allowCustomModality,
+        allowcustomcolorselection: product.allowCustomColorSelection,
+        colors: JSON.stringify(product.colors || []),
+        specifications: JSON.stringify(product.specifications || []),
+        // created_at geralmente é gerenciado pelo banco de dados no insert
+    };
     if (product.createdAt instanceof Date) {
-      createdAtISO = product.createdAt.toISOString();
-    } else if (typeof product.createdAt === 'string' && product.createdAt) {
-      try {
-        createdAtISO = new Date(product.createdAt).toISOString();
-      } catch (e) {
-        console.warn('Invalid createdAt string, using current date:', product.createdAt);
-        createdAtISO = new Date().toISOString();
-      }
-    } else {
-      createdAtISO = new Date().toISOString();
+        // dataForAPI.created_at = product.createdAt.toISOString(); // Se for enviar para API
     }
 
-    const dataForSupabase: any = {
-      name: product.name,
-      description: product.description,
-      price: Number(product.price),
-      category: product.category,
-      stock: Number(product.stock),
-      imageurl: product.imageUrl,
-      featured: product.featured,
-      discount: Number(product.discount || 0),
-      descriptionimages: product.descriptionImages || [],
-      specificationimages: product.specificationImages || [],
-      deliveryimages: product.deliveryImages || [],
-      allowcustomization: product.allowCustomization,
-      allowcustomname: product.allowCustomName, // NOVO
-      allowcustommodality: product.allowCustomModality, // NOVO
-      allowcustomcolorselection: product.allowCustomColorSelection, // NOVO
-      colors: product.colors,
-      specifications: product.specifications || [],
-    };
 
-    if (!('id'in product) || !product.id) {
-      dataForSupabase.createdat = createdAtISO;
+    // Se for um produto existente (tem ID), pode ser necessário enviar o ID
+    // No entanto, para POST (criar), o ID geralmente não é enviado.
+    // Para PUT (atualizar), o ID está na URL.
+    if ('id' in product && product.id) {
+        // Não precisa adicionar 'id' ao corpo para PUT, já está na URL.
+        // Para POST, o backend pode gerar.
     }
 
-    Object.keys(dataForSupabase).forEach(key => {
-      if (dataForSupabase[key] === undefined) {
-        delete dataForSupabase[key];
-      }
+    // Remove chaves indefinidas
+    Object.keys(dataForAPI).forEach(key => {
+        if (dataForAPI[key] === undefined) {
+        delete dataForAPI[key];
+        }
     });
-    return dataForSupabase;
-  };
+    return dataForAPI;
+};
 
-  const formatProductFromDB = (dbProduct: any): Product => {
-    const formattedProduct = {
-      id: dbProduct.id,
-      name: dbProduct.name,
-      description: dbProduct.description,
-      price: isNaN(Number(dbProduct.price)) ? 0 : Number(dbProduct.price),
-      category: dbProduct.category,
-      imageUrl: dbProduct.imageurl,
-      stock: isNaN(Number(dbProduct.stock)) ? 0 : Number(dbProduct.stock),
-      featured: dbProduct.featured || false,
-      discount: isNaN(Number(dbProduct.discount)) ? 0 : Number(dbProduct.discount || 0),
-      createdAt: parseDate(dbProduct.createdat),
-      descriptionImages: dbProduct.descriptionimages || [],
-      specificationImages: dbProduct.specificationimages || [],
-      deliveryImages: dbProduct.deliveryimages || [],
-      allowCustomization: dbProduct.allowcustomization || false,
-      allowCustomName: dbProduct.allowcustomname || false, // NOVO
-      allowCustomModality: dbProduct.allowcustommodality || false, // NOVO
-      allowCustomColorSelection: dbProduct.allowcustomcolorselection || false, // NOVO
-      colors: dbProduct.colors || [],
-      specifications: dbProduct.specifications || [],
-    };
-    return formattedProduct;
-  };
 
-  const mockProducts: Product[] = [
-      {
-          id: '1',
-          name: 'Troféu de Ouro Mock',
-          description: 'Troféu de ouro para premiações esportivas (mock)',
-          price: 129.99,
-          category: 'trofeus',
-          imageUrl: '/placeholder.svg',
-          stock: 15,
-          featured: true,
-          discount: 10,
-          createdAt: new Date(),
-          descriptionImages: ['/placeholder.svg', '/placeholder.svg'],
-          specificationImages: ['/placeholder.svg'],
-          deliveryImages: [],
-          allowCustomization: true,
-          allowCustomName: true, // NOVO
-          allowCustomModality: true, // NOVO
-          allowCustomColorSelection: true, // NOVO
-          colors: ['gold', 'silver'],
-          specifications: [{name: "Material Mock", value: "Plástico ABS"}, {name: "Altura Mock", value: "30cm"}],
-        },
-  ];
-
-  export const createProduct = async (productFormData: ProductFormData): Promise<Product> => {
-      console.log("productsService: createProduct com (form data):", productFormData);
-      if (!isSupabaseConfigured()) {
-        const newProduct: Product = {
-              id: `mock-${Date.now()}`,
-              ...productFormData,
-              price: Number(productFormData.price),
-              stock: Number(productFormData.stock),
-              discount: Number(productFormData.discount || 0),
-              createdAt: productFormData.createdAt || new Date(),
-              specifications: productFormData.specifications || [],
-              descriptionImages: productFormData.descriptionImages || [],
-              specificationImages: productFormData.specificationImages || [],
-              deliveryImages: productFormData.deliveryImages || [],
-              allowCustomName: productFormData.allowCustomName || false, // NOVO
-              allowCustomModality: productFormData.allowCustomModality || false, // NOVO
-              allowCustomColorSelection: productFormData.allowCustomColorSelection || false, // NOVO
-          };
-          mockProducts.push(newProduct);
-          return Promise.resolve(newProduct);
-      }
-
-      const finalProductDataForDB = formatProductForDB(productFormData);
-      console.log("productsService: Enviando para Supabase (create):", finalProductDataForDB);
-
-      try {
-          const { data, error } = await supabase
-              .from(PRODUCTS_TABLE)
-              .insert(finalProductDataForDB)
-              .select()
-              .single();
-          if (error) { throw error; }
-          return formatProductFromDB(data);
-      } catch (err: any) { throw err; }
-  };
-
-  export const updateProduct = async (id: string, productFormData: ProductFormData): Promise<Product> => {
-      console.log(`productsService: updateProduct (ID: ${id}) com (form data):`, productFormData);
-       if (!isSupabaseConfigured()) {
-          const index = mockProducts.findIndex(p => p.id === id);
-          if (index >= 0) {
-              const updatedMockProduct: Product = {
-                  ...mockProducts[index],
-                  ...productFormData,
-                  price: Number(productFormData.price),
-                  stock: Number(productFormData.stock),
-                  discount: Number(productFormData.discount || 0),
-                  createdAt: productFormData.createdAt || mockProducts[index].createdAt,
-                  specifications: productFormData.specifications || mockProducts[index].specifications,
-                  descriptionImages: productFormData.descriptionImages || mockProducts[index].descriptionImages,
-                  specificationImages: productFormData.specificationImages || mockProducts[index].specificationImages,
-                  deliveryImages: productFormData.deliveryImages || mockProducts[index].deliveryImages,
-                  allowCustomName: productFormData.allowCustomName || mockProducts[index].allowCustomName, // NOVO
-                  allowCustomModality: productFormData.allowCustomModality || mockProducts[index].allowCustomModality, // NOVO
-                  allowCustomColorSelection: productFormData.allowCustomColorSelection || mockProducts[index].allowCustomColorSelection, // NOVO
-              };
-              mockProducts[index] = updatedMockProduct;
-              return Promise.resolve(updatedMockProduct);
-          }
-          throw new Error('Produto mock não encontrado para atualização');
-      }
-
-      const finalProductDataForDB = formatProductForDB(productFormData);
-      if (finalProductDataForDB.createdat) {
-          delete finalProductDataForDB.createdat;
-      }
-      console.log(`productsService: Enviando para Supabase (update ID: ${id}):`, finalProductDataForDB);
-
-      try {
-          const { data, error } = await supabase
-              .from(PRODUCTS_TABLE)
-              .update(finalProductDataForDB)
-              .eq('id', id)
-              .select()
-              .single();
-           if (error) { throw error; }
-          return formatProductFromDB(data);
-      } catch (err: any) { throw err; }
-  };
-
-  export const getAllProducts = async (): Promise<Product[]> => {
-    if (!isSupabaseConfigured()) {
-      return Promise.resolve([...mockProducts].map(p => formatProductFromDB(formatProductForDB(p)))); // Garante formatação consistente
-    }
-
+export const getAllProducts = async (): Promise<Product[]> => {
     try {
-      const { data, error } = await supabase
-        .from(PRODUCTS_TABLE)
-        .select('*')
-        .order('createdat', { ascending: false });
-
-      if (error) {
-        console.error('productsService: Erro ao buscar produtos no Supabase:', error);
-        throw error;
-      }
-      return (data || []).map(formatProductFromDB);
+        const response = await fetch(`${API_BASE_URL}`); // API_BASE_URL já inclui /products
+        if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`);
+        }
+        const data = await response.json();
+        return (data || []).map(formatProductFromAPI);
     } catch (err) {
-      console.error('productsService: Falha ao buscar produtos (catch):', err);
-      if (err instanceof Error) {
-          throw err;
-      }
-      throw new Error('Falha desconhecida ao buscar produtos');
+        console.error('Failed to fetch all products:', err);
+        throw err; // Ou retorne um array vazio/mock data
     }
-  };
+};
 
-  export const getProductById = async (id: string): Promise<Product | null> => {
-    if (!isSupabaseConfigured()) {
-      const product = mockProducts.find(p => p.id === id);
-      return product ? Promise.resolve(formatProductFromDB(formatProductForDB(product))) : Promise.resolve(null); // Garante formatação
-    }
-
+export const getProductById = async (id: string): Promise<Product | null> => {
     try {
-      const { data, error } = await supabase
-        .from(PRODUCTS_TABLE)
-        .select('*')
-        .eq('id', id)
-        .single();
-
-      if (error) {
-        if (error.code === 'PGRST116') return null;
-        throw error;
-      }
-      return data ? formatProductFromDB(data) : null;
+        const response = await fetch(`${API_BASE_URL}/${id}`);
+        if (!response.ok) {
+        if (response.status === 404) return null;
+        throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`);
+        }
+        const data = await response.json();
+        return data ? formatProductFromAPI(data) : null;
     } catch (err) {
-       if (err instanceof Error) {
-          throw err;
-      }
-      throw new Error(`Falha desconhecida ao buscar produto por ID ${id}`);
+        console.error(`Failed to fetch product by ID (${id}):`, err);
+        throw err;
     }
-  };
+};
 
-  export const deleteProduct = async (id: string): Promise<void> => {
-    if (!isSupabaseConfigured()) {
-      const index = mockProducts.findIndex(p => p.id === id);
-      if (index > -1) {
-          mockProducts.splice(index, 1);
-      }
-      return Promise.resolve();
-    }
-
+export const createProduct = async (productFormData: ProductFormData): Promise<Product> => {
+    const dataToSend = formatProductForAPI(productFormData);
     try {
-      const { error } = await supabase
-        .from(PRODUCTS_TABLE)
-        .delete()
-        .eq('id', id);
+        const response = await fetch(`${API_BASE_URL}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dataToSend),
+        });
+        if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: response.statusText }));
+        throw new Error(`HTTP error! status: ${response.status} - ${errorData.message || 'Erro desconhecido'}`);
+        }
+        const data = await response.json();
+        return formatProductFromAPI(data);
+    } catch (err) {
+        console.error('Failed to create product:', err);
+        throw err;
+    }
+};
 
-      if (error) {
-        throw error;
-      }
+export const updateProduct = async (id: string, productFormData: ProductFormData): Promise<Product> => {
+    const dataToSend = formatProductForAPI(productFormData);
+    try {
+        const response = await fetch(`${API_BASE_URL}/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dataToSend),
+        });
+        if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: response.statusText }));
+        throw new Error(`HTTP error! status: ${response.status} - ${errorData.message || 'Erro desconhecido'}`);
+        }
+        const data = await response.json();
+        return formatProductFromAPI(data);
+    } catch (err) {
+        console.error(`Failed to update product (ID: ${id}):`, err);
+        throw err;
+    }
+};
+
+export const deleteProduct = async (id: string): Promise<void> => {
+    try {
+        const response = await fetch(`${API_BASE_URL}/${id}`, {
+        method: 'DELETE',
+        });
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ message: response.statusText }));
+            throw new Error(`HTTP error! status: ${response.status} - ${errorData.message || 'Erro desconhecido'}`);
+        }
     } catch (err: any) {
-      const message = err.message || 'Ocorreu um erro desconhecido.';
-      throw new Error(`Falha ao deletar produto: ${message}`.trim());
+        console.error(`Failed to delete product (ID: ${id}):`, err);
+        const message = err.message || 'Ocorreu um erro desconhecido.';
+        throw new Error(`Falha ao deletar produto: ${message}`.trim());
     }
-  };
+};
 
-  export const searchProducts = async (searchTerm: string): Promise<Product[]> => {
-    if (!isSupabaseConfigured()) {
-      return mockProducts.filter(product =>
-        product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (product.description && product.description.toLowerCase().includes(searchTerm.toLowerCase()))
-      ).map(p => formatProductFromDB(formatProductForDB(p))); // Garante formatação
-    }
+export const searchProducts = async (searchTerm: string): Promise<Product[]> => {
     try {
-      const { data, error } = await supabase
-        .from(PRODUCTS_TABLE)
-        .select('*')
-        .or(`name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`)
-        .order('createdat', { ascending: false });
-      if (error) throw error;
-      return (data || []).map(formatProductFromDB);
+        const response = await fetch(`${API_BASE_URL}/search?term=${encodeURIComponent(searchTerm)}`);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`);
+        const data = await response.json();
+        return (data || []).map(formatProductFromAPI);
     } catch (err) {
-      console.error('Failed to search products:', err);
-      return [];
+        console.error('Failed to search products:', err);
+        return [];
     }
-  };
+};
 
-  export const getProductsByCategory = async (category: string): Promise<Product[]> => {
-      if (!isSupabaseConfigured()) return mockProducts.filter(product => product.category === category).map(p => formatProductFromDB(formatProductForDB(p))); // Garante formatação
-      try {
-          const { data, error } = await supabase
-          .from(PRODUCTS_TABLE)
-          .select('*')
-          .eq('category', category)
-          .order('createdat', { ascending: false });
-          if (error) throw error;
-          return (data || []).map(formatProductFromDB);
-      } catch (err) {
-          console.error('Failed to fetch products by category:', err);
-          return [];
-      }
-  };
+export const getProductsByCategory = async (category: string): Promise<Product[]> => {
+    try {
+        const response = await fetch(`${API_BASE_URL}/category/${encodeURIComponent(category)}`);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`);
+        const data = await response.json();
+        return (data || []).map(formatProductFromAPI);
+    } catch (err) {
+        console.error('Failed to fetch products by category:', err);
+        return [];
+    }
+};
 
-  export const getFeaturedProducts = async (): Promise<Product[]> => {
-      if (!isSupabaseConfigured()) return mockProducts.filter(product => product.featured).map(p => formatProductFromDB(formatProductForDB(p))); // Garante formatação
-      try {
-          const { data, error } = await supabase
-          .from(PRODUCTS_TABLE)
-          .select('*')
-          .eq('featured', true)
-          .order('createdat', { ascending: false });
-          if (error) throw error;
-          return (data || []).map(formatProductFromDB);
-      } catch (err) {
-          console.error('Failed to fetch featured products:', err);
-          return [];
-      }
-  };
+export const getFeaturedProducts = async (): Promise<Product[]> => {
+    try {
+        const response = await fetch(`${API_BASE_URL}/featured`);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`);
+        const data = await response.json();
+        return (data || []).map(formatProductFromAPI);
+    } catch (err) {
+        console.error('Failed to fetch featured products:', err);
+        return [];
+    }
+};
